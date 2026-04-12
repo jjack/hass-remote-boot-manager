@@ -55,7 +55,7 @@ async def async_unload_entry(
     entry: RemoteBootManagerConfigEntry,
 ) -> bool:
     """Handle removal of an entry."""
-    webhook.async_unregister(hass, "remote_boot_agent_ingest")
+    webhook.async_unregister(hass, "remote_boot_manager_ingest")
 
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
