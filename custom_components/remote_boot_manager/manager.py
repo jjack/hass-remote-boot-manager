@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.storage import Store
 
 from .const import DEFAULT_OS_NONE, DOMAIN, LOGGER
 
@@ -35,6 +36,22 @@ class RemoteBootManager:
           }
         """
         self.servers: dict[str, Any] = {}
+        self._store = Store(hass, 1, f"{DOMAIN}.servers")
+
+    async def async_load(self) -> None:
+        """Load data from storage."""
+        data = await self._store.async_load()
+        if data and "servers" in data:
+            self.servers = data["servers"]
+
+    def _save(self) -> None:
+        """Save data to storage."""
+        self._store.async_delay_save(self._data_to_save, 1.0)
+
+    @callback
+    def _data_to_save(self) -> dict[str, Any]:
+        """Return data for storage."""
+        return {"servers": self.servers}
 
     @callback
     def async_add_listener(self, update_callback: Callable) -> Callable:
@@ -90,11 +107,14 @@ class RemoteBootManager:
         else:
             self._notify_listeners()
 
+        self._save()
+
     @callback
     def async_set_selected_os(self, mac_address: str, selected_os: str) -> None:
         """Notify listeners that the selected OS has changed."""
         if mac_address in self.servers:
             self.servers[mac_address]["selected_os"] = selected_os
+            self._save()
             self._notify_listeners()
             LOGGER.debug("Set selected OS for %s to %s", mac_address, selected_os)
 
@@ -108,6 +128,7 @@ class RemoteBootManager:
         # grab the selected OS and reset the state for next boot to prevent boot loops
         selected_os = self.servers[mac_address]["selected_os"]
         self.servers[mac_address]["selected_os"] = DEFAULT_OS_NONE
+        self._save()
 
         # Notify UI to revert the dropdown back to "(none)"
         self._notify_listeners()

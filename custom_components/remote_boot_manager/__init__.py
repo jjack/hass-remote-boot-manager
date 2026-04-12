@@ -35,6 +35,7 @@ async def async_setup_entry(
 ) -> bool:
     """Set up this integration using UI."""
     manager = RemoteBootManager(hass)
+    await manager.async_load()
     entry.runtime_data = manager
 
     # register a webhook at /api/webhook/remote_boot_manager_ingest
