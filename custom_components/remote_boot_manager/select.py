@@ -83,7 +83,7 @@ class RemoteBootManagerSelect(SelectEntity, RestoreEntity):
         server_data = self.manager.servers.get(self.mac_address, {})
         opts = server_data.get("os_list", [])
 
-        # Ensure the default reset state is always a valid option
+        # Ensure the default "(none)" is always a valid option
         if DEFAULT_OS_NONE not in opts:
             opts = [DEFAULT_OS_NONE, *opts]
 
