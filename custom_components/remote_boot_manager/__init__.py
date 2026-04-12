@@ -13,7 +13,7 @@ from aiohttp import web
 from homeassistant.components import webhook
 from homeassistant.const import Platform
 
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN, LOGGER, WEBHOOK_ID, WEBHOOK_NAME
 from .manager import RemoteBootManager
 from .views import BootloaderView
 
@@ -41,8 +41,8 @@ async def async_setup_entry(
     webhook.async_register(
         hass,
         DOMAIN,
-        "Remote Boot Manager Ingest",
-        "remote_boot_manager_ingest",
+        WEBHOOK_NAME,
+        WEBHOOK_ID,
         handle_os_ingest_webhook,
     )
     # Register the unauthenticated bootloader view API
@@ -57,7 +57,7 @@ async def async_unload_entry(
     entry: RemoteBootManagerConfigEntry,
 ) -> bool:
     """Handle removal of an entry."""
-    webhook.async_unregister(hass, "remote_boot_manager_ingest")
+    webhook.async_unregister(hass, WEBHOOK_ID)
 
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 

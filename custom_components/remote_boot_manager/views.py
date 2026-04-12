@@ -9,7 +9,7 @@ from aiohttp import web
 from homeassistant.helpers.http import HomeAssistantView
 
 from .bootloaders import get_bootloader
-from .const import DOMAIN
+from .const import BOOTLOADER_VIEW_URL, DOMAIN
 
 if TYPE_CHECKING:
     from .manager import RemoteBootManager
@@ -22,7 +22,7 @@ class BootloaderView(HomeAssistantView):
     """View to handle unauthenticated bootloader requests."""
 
     # {mac_address} matches the `mac_address` argument to the get method
-    url = "/api/remote_boot_manager/{mac_address}"
+    url = BOOTLOADER_VIEW_URL
     name = f"api:{DOMAIN}:bootloader"
     requires_auth = False
 
