@@ -73,7 +73,7 @@ class RemoteBootManager:
             self.servers[mac_address]["bootloader"] = bootloader
 
         # add "(none)" option to the front of the list if it's not already there
-        if os_list[0] != DEFAULT_OS_NONE:
+        if os_list and os_list[0] != DEFAULT_OS_NONE:
             os_list = [DEFAULT_OS_NONE, *os_list]
 
         self.servers[mac_address]["os_list"] = os_list
