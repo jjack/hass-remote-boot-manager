@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
@@ -82,12 +83,26 @@ class RemoteBootManager:
             LOGGER.info("Discovered new server: %s (%s)", hostname, mac_address)
         else:
             selected_os = self.servers[mac_address].get("selected_os", DEFAULT_OS_NONE)
-            LOGGER.info(
-                "Received update for server: %s (%s) - OS list: %s",
-                hostname,
-                mac_address,
-                os_list,
-            )
+            old_hostname = self.servers[mac_address].get("hostname", "unknown_server")
+
+            # Update the HA device registry so the entity name updates in the UI
+            if old_hostname != hostname:
+                LOGGER.info(
+                    "Server renamed: %s -> %s (%s)", old_hostname, hostname, mac_address
+                )
+                device_reg = dr.async_get(self.hass)
+                device = device_reg.async_get_device(
+                    identifiers={(DOMAIN, mac_address)}
+                )
+                if device:
+                    device_reg.async_update_device(device.id, name=hostname)
+            else:
+                LOGGER.info(
+                    "Received update for server: %s (%s) - OS list: %s",
+                    hostname,
+                    mac_address,
+                    os_list,
+                )
 
         self.servers[mac_address] = {
             "hostname": hostname,
