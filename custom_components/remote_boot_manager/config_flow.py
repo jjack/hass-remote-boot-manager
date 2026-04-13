@@ -7,7 +7,7 @@ from homeassistant import config_entries
 from homeassistant.components import webhook
 from homeassistant.loader import async_get_loaded_integration
 
-from .const import DOMAIN, WEBHOOK_ID
+from .const import DOMAIN
 
 
 class RemoteBootManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
@@ -17,7 +17,7 @@ class RemoteBootManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialize the config flow."""
-        self._webhook_id: str = WEBHOOK_ID
+        self._webhook_id: str | None = None
 
     async def async_step_user(
         self,
@@ -33,31 +33,12 @@ class RemoteBootManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         if user_input is not None:
-            if user_input.get("generate_random_webhook_id"):
-                self._webhook_id = webhook.async_generate_id()
-                return await self.async_step_webhook_info()
-
-            self._webhook_id = user_input.get("webhook_id", WEBHOOK_ID)
-            return self.async_create_entry(
-                title="Remote Boot Manager", data={"webhook_id": self._webhook_id}
-            )
-
-        data_schema = vol.Schema(
-            {
-                vol.Optional(
-                    "webhook_id",
-                    default=WEBHOOK_ID,
-                ): str,
-                vol.Optional(
-                    "generate_random_webhook_id",
-                    default=False,
-                ): bool,
-            }
-        )
+            self._webhook_id = webhook.async_generate_id()
+            return await self.async_step_webhook_info()
 
         return self.async_show_form(
             step_id="user",
-            data_schema=data_schema,
+            data_schema=vol.Schema({}),
             errors={},
             description_placeholders={
                 "documentation_url": integration.documentation,
@@ -69,6 +50,9 @@ class RemoteBootManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         user_input: dict | None = None,
     ) -> config_entries.ConfigFlowResult:
         """Show the generated webhook ID to the user."""
+        if self._webhook_id is None:
+            return self.async_abort(reason="webhook_id_generation_failed")
+
         if user_input is not None:
             return self.async_create_entry(
                 title="Remote Boot Manager", data={"webhook_id": self._webhook_id}
