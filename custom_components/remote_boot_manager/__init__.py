@@ -16,7 +16,7 @@ from homeassistant.components import webhook
 from homeassistant.const import CONF_MAC, Platform
 from homeassistant.helpers.device_registry import format_mac
 
-from .const import DOMAIN, LOGGER, WEBHOOK_ID, WEBHOOK_MAX_PAYLOAD_BYTES, WEBHOOK_NAME
+from .const import DOMAIN, LOGGER, WEBHOOK_MAX_PAYLOAD_BYTES, WEBHOOK_NAME
 from .manager import RemoteBootManager
 from .views import BootloaderView
 
@@ -73,14 +73,15 @@ async def async_setup_entry(
     entry.runtime_data = manager
 
     # Register the webhook globally since it iterates over all entries
-    webhook_id = entry.data.get("webhook_id", WEBHOOK_ID)
-    webhook.async_register(
-        hass,
-        DOMAIN,
-        WEBHOOK_NAME,
-        webhook_id,
-        handle_os_ingest_webhook,
-    )
+    webhook_id = entry.data.get("webhook_id")
+    if webhook_id:
+        webhook.async_register(
+            hass,
+            DOMAIN,
+            WEBHOOK_NAME,
+            webhook_id,
+            handle_os_ingest_webhook,
+        )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -92,8 +93,9 @@ async def async_unload_entry(
     entry: RemoteBootManagerConfigEntry,
 ) -> bool:
     """Handle removal of an entry."""
-    webhook_id = entry.data.get("webhook_id", WEBHOOK_ID)
-    webhook.async_unregister(hass, webhook_id)
+    webhook_id = entry.data.get("webhook_id")
+    if webhook_id:
+        webhook.async_unregister(hass, webhook_id)
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
