@@ -45,6 +45,11 @@ class RemoteBootManager:
         if data and "servers" in data:
             self.servers = data["servers"]
 
+    async def async_purge_data(self) -> None:
+        """Purge data from storage."""
+        self.servers.clear()
+        await self._store.async_remove()
+
     @callback
     def async_remove_server(self, mac_address: str) -> None:
         """Remove a server from the manager and save state."""

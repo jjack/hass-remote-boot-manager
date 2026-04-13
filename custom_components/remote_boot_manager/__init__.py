@@ -175,8 +175,20 @@ async def handle_os_ingest_webhook(
         return web.Response(status=500, text="Internal Server Error")
 
 
-async def async_remove_config_entry_device(
+async def async_remove_entry(
     hass: HomeAssistant,
+    entry: RemoteBootManagerConfigEntry,  # noqa: ARG001
+) -> None:
+    """Handle removal of an entry."""
+    # Since async_unload_entry unregisters the webhook,
+    # and Home Assistant automatically handles device/entity removal,
+    # we just need to purge the manager data.
+    manager = RemoteBootManager(hass)
+    await manager.async_purge_data()
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant,  # noqa: ARG001
     config_entry: RemoteBootManagerConfigEntry,
     device_entry: DeviceEntry,
 ) -> bool:
