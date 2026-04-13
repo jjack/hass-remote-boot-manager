@@ -45,6 +45,14 @@ class RemoteBootManager:
         if data and "servers" in data:
             self.servers = data["servers"]
 
+    @callback
+    def async_remove_server(self, mac_address: str) -> None:
+        """Remove a server from the manager and save state."""
+        if mac_address in self.servers:
+            self.servers.pop(mac_address)
+            self._save()
+            LOGGER.info("Removed server: %s", mac_address)
+
     def _save(self) -> None:
         """Save data to storage."""
         self._store.async_delay_save(self._data_to_save, SAVE_DELAY)

@@ -14,7 +14,7 @@ import voluptuous as vol
 from aiohttp import web
 from homeassistant.components import webhook
 from homeassistant.const import CONF_MAC, Platform
-from homeassistant.helpers.device_registry import format_mac
+from homeassistant.helpers.device_registry import DeviceEntry, format_mac
 
 from .const import DOMAIN, LOGGER, WEBHOOK_MAX_PAYLOAD_BYTES, WEBHOOK_NAME
 from .manager import RemoteBootManager
@@ -173,3 +173,28 @@ async def handle_os_ingest_webhook(
     except Exception as err:  # noqa: BLE001
         LOGGER.error("Failed to process webhook: %s", err)
         return web.Response(status=500, text="Internal Server Error")
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant,
+    config_entry: RemoteBootManagerConfigEntry,
+    device_entry: DeviceEntry,
+) -> bool:
+    """Remove a device from a config entry and clean up manager data."""
+    manager = config_entry.runtime_data
+
+    # Extract the MAC address from the device's identifiers
+    mac_address = next(
+        (
+            identifier[1]
+            for identifier in device_entry.identifiers
+            if identifier[0] == DOMAIN
+        ),
+        None,
+    )
+
+    # Remove the server from our internal state
+    if mac_address:
+        manager.async_remove_server(mac_address)
+
+    return True
