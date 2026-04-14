@@ -2,26 +2,27 @@
 """Test __init__ for remote_boot_manager."""
 
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import voluptuous as vol
 from aiohttp import web
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.device_registry import async_get as async_get_dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-from homeassistant.helpers.device_registry import DeviceEntry, async_get as async_get_dr
 
+from custom_components.remote_boot_manager.__init__ import (
+    async_reload_entry,
+    async_remove_config_entry_device,
+    async_remove_entry,
+    async_validate_webhook_payload,
+    coerce_mac_address,
+    handle_os_ingest_webhook,
+)
 from custom_components.remote_boot_manager.const import (
     DOMAIN,
     WEBHOOK_MAX_PAYLOAD_BYTES,
-)
-from custom_components.remote_boot_manager.__init__ import (
-    coerce_mac_address,
-    async_validate_webhook_payload,
-    handle_os_ingest_webhook,
-    async_remove_config_entry_device,
-    async_remove_entry,
-    async_reload_entry,
 )
 from custom_components.remote_boot_manager.manager import RemoteBootManager
 
@@ -38,12 +39,14 @@ async def test_webhook_payload_validation(hass: HomeAssistant) -> None:
     mock_request.text.return_value = ""
     payload, err_response = await async_validate_webhook_payload(mock_request)
     assert payload is None
+    assert err_response is not None
     assert err_response.status == 400
 
     # Test payload too large
     mock_request.text.return_value = "x" * (WEBHOOK_MAX_PAYLOAD_BYTES + 1)
     payload, err_response = await async_validate_webhook_payload(mock_request)
     assert payload is None
+    assert err_response is not None
     assert err_response.status == 413
 
     # Test invalid JSON
@@ -51,6 +54,7 @@ async def test_webhook_payload_validation(hass: HomeAssistant) -> None:
     mock_request.json.side_effect = ValueError()
     payload, err_response = await async_validate_webhook_payload(mock_request)
     assert payload is None
+    assert err_response is not None
     assert err_response.status == 400
 
     # Test invalid schema (missing MAC)
@@ -59,6 +63,7 @@ async def test_webhook_payload_validation(hass: HomeAssistant) -> None:
     mock_request.json.side_effect = None
     payload, err_response = await async_validate_webhook_payload(mock_request)
     assert payload is None
+    assert err_response is not None
     assert err_response.status == 400
 
 
