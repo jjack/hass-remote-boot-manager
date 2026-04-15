@@ -7,7 +7,7 @@ from homeassistant import config_entries
 from homeassistant.components import webhook
 from homeassistant.loader import async_get_loaded_integration
 
-from .const import DOMAIN
+from .const import BOOT_AGENT_URL, DOMAIN
 
 
 class RemoteBootManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
@@ -65,5 +65,6 @@ class RemoteBootManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "webhook_id": self._webhook_id,
                 "webhook_url": webhook_url,
+                "agent_url": BOOT_AGENT_URL,
             },
         )
