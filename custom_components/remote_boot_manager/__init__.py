@@ -82,7 +82,7 @@ async def async_setup_entry(
             DOMAIN,
             WEBHOOK_NAME,
             webhook_id,
-            handle_os_ingest_webhook,
+            handle_boot_options_ingest_webhook,
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -143,10 +143,10 @@ async def async_validate_webhook_payload(
     return payload, None
 
 
-async def handle_os_ingest_webhook(
+async def handle_boot_options_ingest_webhook(
     hass: HomeAssistant, _webhook_id: str, request: web.Request
 ) -> web.Response:
-    """Handle incoming OS push requests from bare-metal Go agents."""
+    """Handle incoming boot options push requests from bare-metal Go agents."""
     try:
         payload, error_response = await async_validate_webhook_payload(request)
         if error_response:

@@ -87,15 +87,17 @@ class RemoteBootManager:
     def async_process_webhook_payload(self, mac_address: str, payload: dict) -> None:
         """Process payloads from the bare-metal GO agents."""
         hostname = payload["hostname"]
-        os_list = payload["os_list"]
+        boot_options = payload["boot_options"]
         bootloader = payload["bootloader"]
 
         is_new_server = mac_address not in self.servers
         if is_new_server:
-            selected_os = DEFAULT_OS_NONE
+            selected_boot_option = DEFAULT_OS_NONE
             LOGGER.info("Discovered new server: %s (%s)", hostname, mac_address)
         else:
-            selected_os = self.servers[mac_address].get("selected_os", DEFAULT_OS_NONE)
+            selected_boot_option = self.servers[mac_address].get(
+                "selected_os", DEFAULT_OS_NONE
+            )
             old_hostname = self.servers[mac_address]["hostname"]
 
             # Update the HA device registry so the entity name updates in the UI
@@ -111,31 +113,31 @@ class RemoteBootManager:
                     device_reg.async_update_device(device.id, name=hostname)
             else:
                 LOGGER.info(
-                    "Received update for server: %s (%s) - OS list: %s",
+                    "Received update for server: %s (%s) - boot options: %s",
                     hostname,
                     mac_address,
-                    os_list,
+                    boot_options,
                 )
 
         self.servers[mac_address] = {
             "hostname": hostname,
             "bootloader": bootloader,
-            "os_list": [],
-            "selected_os": selected_os,
+            "boot_options": [],
+            "selected_boot_option": selected_boot_option,
         }
 
         # add "(none)" option to the front of the list if it's not already there
-        if os_list and os_list[0] != DEFAULT_OS_NONE:
-            os_list = [DEFAULT_OS_NONE, *os_list]
+        if boot_options and boot_options[0] != DEFAULT_OS_NONE:
+            boot_options = [DEFAULT_OS_NONE, *boot_options]
 
-        self.servers[mac_address]["os_list"] = os_list
+        self.servers[mac_address]["boot_options"] = boot_options
 
-        # If the selected OS is no longer in the list, reset it
+        # If the selected boot option is no longer in the list, reset it
         if (
-            self.servers[mac_address]["selected_os"] not in os_list
-            and self.servers[mac_address]["selected_os"] != DEFAULT_OS_NONE
+            self.servers[mac_address]["selected_boot_option"] not in boot_options
+            and self.servers[mac_address]["selected_boot_option"] != DEFAULT_OS_NONE
         ):
-            self.servers[mac_address]["selected_os"] = DEFAULT_OS_NONE
+            self.servers[mac_address]["selected_boot_option"] = DEFAULT_OS_NONE
 
         if is_new_server:
             async_dispatcher_send(self.hass, SIGNAL_NEW_SERVER, mac_address)
@@ -145,27 +147,36 @@ class RemoteBootManager:
         self._save()
 
     @callback
-    def async_set_selected_os(self, mac_address: str, selected_os: str) -> None:
-        """Notify listeners that the selected OS has changed."""
+    def async_set_selected_boot_option(
+        self, mac_address: str, selected_boot_option: str
+    ) -> None:
+        """Notify listeners that the selected boot option has changed."""
         if mac_address in self.servers:
-            self.servers[mac_address]["selected_os"] = selected_os
+            self.servers[mac_address]["selected_boot_option"] = selected_boot_option
             self._save()
             self._notify_listeners()
-            LOGGER.debug("Set selected OS for %s to %s", mac_address, selected_os)
+            LOGGER.debug(
+                "Set selected boot option for %s to %s",
+                mac_address,
+                selected_boot_option,
+            )
 
     @callback
-    def async_consume_selected_os(self, mac_address: str) -> str:
-        """Retrieve the requested OS and immediately resets the state."""
+    def async_consume_selected_boot_option(self, mac_address: str) -> str:
+        """Retrieve the requested boot option and immediately resets the state."""
         if mac_address not in self.servers:
-            LOGGER.warning("GRUB requested OS for unknown MAC address: %s", mac_address)
+            LOGGER.warning(
+                "GRUB requested boot option for unknown MAC address: %s", mac_address
+            )
             return DEFAULT_OS_NONE
 
-        # grab the selected OS and reset the state for next boot to prevent boot loops
-        selected_os = self.servers[mac_address]["selected_os"]
-        self.servers[mac_address]["selected_os"] = DEFAULT_OS_NONE
+        # grab the selected boot option and reset the state for next boot to
+        # prevent boot loops
+        selected_boot_option = self.servers[mac_address]["selected_boot_option"]
+        self.servers[mac_address]["selected_boot_option"] = DEFAULT_OS_NONE
         self._save()
 
         # Notify UI to revert the dropdown back to "(none)"
         self._notify_listeners()
 
-        return selected_os
+        return selected_boot_option

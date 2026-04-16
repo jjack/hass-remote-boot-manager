@@ -47,7 +47,7 @@ async def discovered_client(hass: HomeAssistant, setup_integration):
         "mac": "aa:bb:cc:dd:ee:ff",
         "hostname": "test-server",
         "bootloader": "grub",
-        "os_list": ["ubuntu", "windows"],
+        "boot_options": ["ubuntu", "windows"],
     }
     resp = await client.post(webhook_url, json=payload)
     assert resp.status == 200
@@ -63,14 +63,14 @@ async def test_webhook_discovery(hass: HomeAssistant, setup_integration) -> None
         "mac": "aa:bb:cc:dd:ee:ff",
         "hostname": "test-server",
         "bootloader": "grub",
-        "os_list": ["ubuntu", "windows"],
+        "boot_options": ["ubuntu", "windows"],
     }
 
     resp = await client.post(webhook_url, json=payload)
     assert resp.status == 200
     await hass.async_block_till_done()
 
-    entity_id_select = "select.test_server_next_boot_os"
+    entity_id_select = "select.test_server_next_boot_option"
     entity_id_button = "button.test_server_wake_server"
 
     state = hass.states.get(entity_id_select)
@@ -84,9 +84,9 @@ async def test_webhook_discovery(hass: HomeAssistant, setup_integration) -> None
 async def test_select_and_bootloader_view(
     hass: HomeAssistant, discovered_client
 ) -> None:
-    """Test selecting an OS and retrieving the bootloader view."""
+    """Test selecting a boot option and retrieving the bootloader view."""
     client = discovered_client
-    entity_id_select = "select.test_server_next_boot_os"
+    entity_id_select = "select.test_server_next_boot_option"
 
     await hass.services.async_call(
         "select",
@@ -105,12 +105,14 @@ async def test_select_and_bootloader_view(
     assert 'grub-reboot "ubuntu"' in text or "ubuntu" in text
 
 
-async def test_button_press_resets_os(hass: HomeAssistant, discovered_client) -> None:
-    """Test that pressing the wake server button sends magic packet and resets OS."""
-    entity_id_select = "select.test_server_next_boot_os"
+async def test_button_press_resets_boot_option(
+    hass: HomeAssistant, discovered_client
+) -> None:
+    """Test that pressing the wake server button sends magic packet and resets boot option."""
+    entity_id_select = "select.test_server_next_boot_option"
     entity_id_button = "button.test_server_wake_server"
 
-    # First, select an OS
+    # First, select a boot option
     await hass.services.async_call(
         "select",
         "select_option",
@@ -132,7 +134,7 @@ async def test_button_press_resets_os(hass: HomeAssistant, discovered_client) ->
         await hass.async_block_till_done()
         mock_wake.assert_called_once_with("aa:bb:cc:dd:ee:ff")
 
-    # Verify OS resets to default
+    # Verify boot option resets to default
     state = hass.states.get(entity_id_select)
     assert state is not None
     assert state.state == DEFAULT_OS_NONE
@@ -142,7 +144,7 @@ async def test_remove_integration_cleans_up(
     hass: HomeAssistant, discovered_client, mock_config_entry
 ) -> None:
     """Test that removing the integration cleans up devices and entities."""
-    entity_id_select = "select.test_server_next_boot_os"
+    entity_id_select = "select.test_server_next_boot_option"
     entity_id_button = "button.test_server_wake_server"
 
     assert await hass.config_entries.async_remove(mock_config_entry.entry_id)

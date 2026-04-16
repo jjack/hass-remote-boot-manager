@@ -15,7 +15,7 @@ from custom_components.remote_boot_manager.__init__ import (
     async_remove_entry,
     async_validate_webhook_payload,
     coerce_mac_address,
-    handle_os_ingest_webhook,
+    handle_boot_options_ingest_webhook,
 )
 from custom_components.remote_boot_manager.const import (
     DOMAIN,
@@ -70,7 +70,7 @@ async def test_handle_webhook_error_cases(hass: HomeAssistant) -> None:
     mock_request.text.return_value = ""
 
     # Empty body triggers 400 immediately
-    resp = await handle_os_ingest_webhook(hass, "test", mock_request)
+    resp = await handle_boot_options_ingest_webhook(hass, "test", mock_request)
     assert resp.status == 400
 
     # Exception inside triggers 500
@@ -78,7 +78,7 @@ async def test_handle_webhook_error_cases(hass: HomeAssistant) -> None:
         "custom_components.remote_boot_manager.__init__.async_validate_webhook_payload",
         side_effect=Exception("Boom"),
     ):
-        resp = await handle_os_ingest_webhook(hass, "test", mock_request)
+        resp = await handle_boot_options_ingest_webhook(hass, "test", mock_request)
         assert resp.status == 500
 
     # Valid payload, but no manager found
@@ -86,7 +86,7 @@ async def test_handle_webhook_error_cases(hass: HomeAssistant) -> None:
         "custom_components.remote_boot_manager.__init__.async_validate_webhook_payload",
         return_value=({"mac": "aa:bb:cc:dd:ee:ff"}, None),
     ):
-        resp = await handle_os_ingest_webhook(hass, "test", mock_request)
+        resp = await handle_boot_options_ingest_webhook(hass, "test", mock_request)
         assert resp.status == 503
 
 

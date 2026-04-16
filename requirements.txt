@@ -4,3 +4,6 @@ pip>=21.3.1
 pre-commit>=4.0.0
 ruff==0.15.7
 wakeonlan==3.1.0
+pytest
+pytest-asyncio
+pytest-homeassistant-custom-component
