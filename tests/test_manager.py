@@ -77,6 +77,7 @@ async def test_manager_process_existing_server(
 
     # check device name updated
     device = dev_reg.async_get_device(identifiers={(DOMAIN, "aa:bb:cc:dd:ee:ff")})
+    assert device is not None
     assert device.name == "new-name"
 
 
