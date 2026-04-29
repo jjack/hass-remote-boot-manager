@@ -19,7 +19,7 @@ class GrubBootloader(BootloaderBase):
         """Generate the GRUB boot configuration response."""
         next_boot_option = server.get("next_boot_option", "(none)")
         if next_boot_option != "(none)":
-            content = f"set defaults='{next_boot_option}'\n"
+            content = f"set default='{next_boot_option}'\n"
         else:
             # returning nothing causes GRUB to fall back to its default behavior
             content = ""
