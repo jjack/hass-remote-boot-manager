@@ -67,15 +67,21 @@ async def test_webhook_generation_failed(hass: HomeAssistant) -> None:
     assert result.get("reason") == "webhook_id_generation_failed"
 
 
-async def test_options_flow_regenerate(hass: HomeAssistant) -> None:
-    """Test options flow to regenerate webhook ID."""
+async def test_reconfigure_flow(hass: HomeAssistant) -> None:
+    """Test reconfigure flow to regenerate webhook ID."""
     entry = MockConfigEntry(domain=DOMAIN, data={"webhook_id": "old_id"})
     entry.add_to_hass(hass)
 
-    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={
+            "source": config_entries.SOURCE_RECONFIGURE,
+            "entry_id": entry.entry_id,
+        },
+    )
 
     assert result.get("type") == FlowResultType.FORM
-    assert result.get("step_id") == "init"
+    assert result.get("step_id") == "reconfigure"
 
     with (
         patch(
@@ -87,39 +93,19 @@ async def test_options_flow_regenerate(hass: HomeAssistant) -> None:
             return_value="http://example.com/new_webhook",
         ),
     ):
-        result2 = await hass.config_entries.options.async_configure(
+        result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
-            user_input={"regenerate_webhook_id": True},
+            user_input={},
         )
 
     assert result2.get("type") == FlowResultType.FORM
-    assert result2.get("step_id") == "webhook_info"
+    assert result2.get("step_id") == "reconfigure_webhook_info"
 
-    with patch(
-        "homeassistant.config_entries.ConfigEntries.async_reload", return_value=True
-    ) as mock_reload:
-        result3 = await hass.config_entries.options.async_configure(
-            result2["flow_id"],
-            user_input={},
-        )
-        await hass.async_block_till_done()
-
-    assert result3.get("type") == FlowResultType.CREATE_ENTRY
-    assert entry.data["webhook_id"] == "new_id"
-    mock_reload.assert_called_once_with(entry.entry_id)
-
-
-async def test_options_flow_no_regenerate(hass: HomeAssistant) -> None:
-    """Test options flow without regenerating webhook ID."""
-    entry = MockConfigEntry(domain=DOMAIN, data={"webhook_id": "old_id"})
-    entry.add_to_hass(hass)
-
-    result = await hass.config_entries.options.async_init(entry.entry_id)
-
-    result2 = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        user_input={"regenerate_webhook_id": False},
+    result3 = await hass.config_entries.flow.async_configure(
+        result2["flow_id"],
+        user_input={},
     )
 
-    assert result2.get("type") == FlowResultType.CREATE_ENTRY
-    assert entry.data["webhook_id"] == "old_id"
+    assert result3.get("type") == FlowResultType.ABORT
+    assert result3.get("reason") == "reconfigure_successful"
+    assert entry.data["webhook_id"] == "new_id"
