@@ -4,4 +4,5 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-.venv/bin/pytest "$@"
+ruff check .
+ruff format --check .
