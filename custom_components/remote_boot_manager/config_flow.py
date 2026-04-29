@@ -68,3 +68,42 @@ class RemoteBootManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 "agent_url": BOOT_AGENT_URL,
             },
         )
+
+    async def async_step_reconfigure(
+        self,
+        user_input: dict | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Handle a reconfiguration flow initialized by the user."""
+        if user_input is not None:
+            self._webhook_id = webhook.async_generate_id()
+            return await self.async_step_reconfigure_webhook_info()
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema({}),
+        )
+
+    async def async_step_reconfigure_webhook_info(
+        self,
+        user_input: dict | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Show the new webhook ID to the user."""
+        if self._webhook_id is None:
+            return self.async_abort(reason="webhook_id_generation_failed")
+
+        if user_input is not None:
+            return self.async_update_reload_and_abort(
+                self._get_reconfigure_entry(),
+                data={"webhook_id": self._webhook_id},
+            )
+
+        webhook_url = webhook.async_generate_url(self.hass, self._webhook_id)
+
+        return self.async_show_form(
+            step_id="reconfigure_webhook_info",
+            description_placeholders={
+                "webhook_id": self._webhook_id,
+                "webhook_url": webhook_url,
+                "agent_url": BOOT_AGENT_URL,
+            },
+        )

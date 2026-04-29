@@ -9,6 +9,15 @@
             "webhook_info": {
                 "title": "Generated Webhook ID",
                 "description": "Here is your securely generated Webhook ID. **Please copy this now as it will not be shown again.**\n\n```text\n{webhook_id}\n```\n\nFor full instructions on configuring and installing the agent, visit the [Remote Boot Agent]({agent_url}) repository."
+            },
+            "reconfigure": {
+                "title": "Reconfigure Remote Boot Manager",
+                "description": "**Warning:** Regenerating the webhook ID will break the connection with your existing agents until they are updated with the new ID.",
+                "data": {}
+            },
+            "reconfigure_webhook_info": {
+                "title": "New Webhook ID",
+                "description": "Here is your securely generated new Webhook ID. **Please copy this now as it will not be shown again.**\n\n```text\n{webhook_id}\n```\n\nRemember to update all your Remote Boot Agents with this new ID.\n\nFor full instructions on configuring and installing the agent, visit the [Remote Boot Agent]({agent_url}) repository."
             }
         },
         "error": {
