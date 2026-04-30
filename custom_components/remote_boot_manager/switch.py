@@ -6,21 +6,38 @@ import asyncio
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
+import homeassistant.helpers.config_validation as cv
+import voluptuous as vol
 import wakeonlan
-from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
+from homeassistant.components.switch import (
+    PLATFORM_SCHEMA,
+    SwitchDeviceClass,
+    SwitchEntity,
+)
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from icmplib import async_ping
 
-from .const import DOMAIN, SIGNAL_NEW_SERVER
+from .const import DOMAIN, LOGGER
+from .manager import RemoteServer
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-    from .data import RemoteBootManagerConfigEntry
-    from .manager import RemoteBootManager
+
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required("mac"): cv.string,
+        vol.Optional("name", default="Wake on LAN"): cv.string,
+        vol.Optional("host"): cv.string,
+        vol.Optional("broadcast_address"): cv.string,
+        vol.Optional("broadcast_port"): cv.port,
+        vol.Optional("bootloader"): cv.string,
+        vol.Optional("boot_options"): vol.All(cv.ensure_list, [cv.string]),
+    }
+)
 
 
 async def _async_ping_host(host: str) -> bool:
@@ -34,27 +51,32 @@ async def _async_ping_host(host: str) -> bool:
         return result.is_alive
 
 
-async def async_setup_entry(
+# this provides backwards compatibility with the Wake On Lan integration's
+# YAML config, but is not intended for anything else.
+async def async_setup_platform(
     hass: HomeAssistant,
-    entry: RemoteBootManagerConfigEntry,
+    config: ConfigType,
     async_add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
-    """Set up the switch platform."""
-    manager = entry.runtime_data
+    """Set up a remote_boot_manager switch from YAML."""
+    if "bootloader" in config or "boot_options" in config:
+        LOGGER.warning(
+            "configuration.yaml support is for backwards compatability with "
+            "the Wake On Lan integration only. Use the remote-boot-agent "
+            f"to set up {config['mac']}."
+        )
+        return
 
-    @callback
-    def async_add_server_switch(mac_address: str) -> None:
-        """Add a switch entity for a newly discovered server."""
-        async_add_entities([RemoteBootManagerSwitch(manager, mac_address)])
-
-    # Add entities for servers that already exist in the manager
-    for mac in manager.servers:
-        async_add_server_switch(mac)
-
-    # Listen for the signal to add new servers discovered via webhook
-    entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_NEW_SERVER, async_add_server_switch)
+    server = RemoteServer(
+        mac=config["mac"],
+        name=config["name"],
+        host=config.get("host"),
+        broadcast_address=config.get("broadcast_address"),
+        broadcast_port=config.get("broadcast_port"),
     )
+
+    async_add_entities([RemoteBootManagerSwitch(config["mac"], server)])
 
 
 class RemoteBootManagerSwitch(SwitchEntity):
@@ -62,13 +84,12 @@ class RemoteBootManagerSwitch(SwitchEntity):
 
     def __init__(
         self,
-        manager: RemoteBootManager,
         mac_address: str,
+        server: RemoteServer,
     ) -> None:
         """Initialize the switch class."""
-        self.manager = manager
         self.mac_address = mac_address
-        self.server = manager.servers[mac_address]
+        self.server = server
 
         self._attr_unique_id = f"{mac_address}_wake_switch"
         self._attr_name = None
