@@ -32,7 +32,18 @@ class BootloaderView(HomeAssistantView):
         self.manager = manager
 
     async def get(self, request: web.Request, mac_address: str) -> web.Response:
-        """Handle GET requests for a specific server's boot configuration."""
+        """
+        Handle GET requests for a specific server's boot configuration.
+
+        By default, this endpoint is read-only.
+        If a valid `token` (the integration's webhook ID) is provided in the query
+        string, this endpoint deviates from RESTful principles by containing a
+        side-effect: it "consumes" the next_boot_option and resets it to none.
+
+        This is a necessary compromise because many basic bootloaders (e.g., GRUB)
+        only support downloading configurations via HTTP GET and lack the capability
+        to execute POST requests to acknowledge receipt.
+        """
         hass = request.app["hass"]
         mac_address = format_mac(mac_address)
         if not mac_address:
@@ -42,6 +53,7 @@ class BootloaderView(HomeAssistantView):
 
         server = self.manager.servers.get(mac_address)
         if not server:
+            # this is a wake on lan entry, so this is probably a misconfiguration
             LOGGER.warning(
                 "Bootloader request for unknown MAC address: %s", mac_address
             )
@@ -61,12 +73,24 @@ class BootloaderView(HomeAssistantView):
             )
             return web.json_response({"error": "Bootloader not supported"}, status=400)
 
-        # Call the appropriate bootloader instance to generate the response
+        # Call the appropriate bootloader instance to generate the response and (maybe)
+        # consume the next boot option.
         try:
+            token = request.query.get("token")
+            valid_tokens = {
+                entry.data["webhook_id"]
+                for entry in hass.config_entries.async_entries(DOMAIN)
+                if "webhook_id" in entry.data
+            }
+
             server_copy = dataclasses.asdict(server)
-            server_copy["next_boot_option"] = (
-                self.manager.async_consume_next_boot_option(mac_address)
-            )
+            if token and token in valid_tokens:
+                server_copy["next_boot_option"] = (
+                    self.manager.async_consume_next_boot_option(mac_address)
+                )
+            else:
+                server_copy["next_boot_option"] = server.next_boot_option
+
             return bootloader.generate_boot_config(server_copy)
         except Exception:
             LOGGER.exception("Error generating boot config for %s", mac_address)
