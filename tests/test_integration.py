@@ -202,7 +202,7 @@ async def test_global_send_magic_packet_service(
 ) -> None:
     """Test that the global send_magic_packet service works."""
     with patch(
-        "custom_components.remote_boot_manager.__init__.wakeonlan.send_magic_packet"
+        "custom_components.remote_boot_manager.wakeonlan.send_magic_packet"
     ) as mock_wake:
         await hass.services.async_call(
             DOMAIN,
@@ -218,3 +218,70 @@ async def test_global_send_magic_packet_service(
         mock_wake.assert_called_once_with(
             "aa:bb:cc:dd:ee:ff", ip_address="192.168.1.255", port=9
         )
+
+        mock_wake.assert_called_once_with(
+            "aa:bb:cc:dd:ee:ff", ip_address="192.168.1.255", port=9
+        )
+
+
+async def test_webhook_validation_error(hass: HomeAssistant, setup_integration) -> None:
+    """Test webhook returns the error response from validation."""
+    client = setup_integration
+    webhook_url = "/api/webhook/test_webhook_id"
+
+    resp = await client.post(webhook_url, data="not valid json")
+    assert resp.status == 400
+    text = await resp.text()
+    assert "Invalid JSON payload" in text
+
+
+async def test_webhook_unexpected_empty_payload(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test webhook returns 500 if payload is unexpectedly None."""
+    client = setup_integration
+    webhook_url = "/api/webhook/test_webhook_id"
+
+    with patch(
+        "custom_components.remote_boot_manager.async_validate_webhook_payload",
+        return_value=(None, None),
+    ):
+        resp = await client.post(webhook_url, data="dummy")
+        assert resp.status == 500
+        text = await resp.text()
+        assert text == "Unexpected empty payload"
+
+
+async def test_webhook_missing_mac_address(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test webhook returns 400 if mac_address is missing from the validated payload."""
+    client = setup_integration
+    webhook_url = "/api/webhook/test_webhook_id"
+
+    with patch(
+        "custom_components.remote_boot_manager.async_validate_webhook_payload",
+        return_value=({"name": "test-server"}, None),
+    ):
+        resp = await client.post(webhook_url, data="dummy")
+        assert resp.status == 400
+        text = await resp.text()
+        assert text == "MAC address missing from payload"
+
+
+async def test_webhook_internal_server_error(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Test webhook returns 500 on unexpected exception."""
+    client = setup_integration
+    webhook_url = "/api/webhook/test_webhook_id"
+    payload = {"mac": "aa:bb:cc:dd:ee:ff", "name": "test-server"}
+
+    with patch(
+        "custom_components.remote_boot_manager.manager.RemoteBootManager.async_process_webhook_payload",
+        side_effect=Exception("Boom"),
+    ):
+        resp = await client.post(webhook_url, json=payload)
+        assert resp.status == 500
+        text = await resp.text()
+        assert text == "Internal Server Error"
