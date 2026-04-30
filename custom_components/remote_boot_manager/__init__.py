@@ -36,10 +36,7 @@ if TYPE_CHECKING:
 
 SERVICE_SEND_MAGIC_PACKET = "send_magic_packet"
 
-CONFIG_SCHEMA = vol.Schema(
-    {DOMAIN: vol.Schema({})},
-    extra=vol.ALLOW_EXTRA,
-)
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 WAKE_ON_LAN_SEND_MAGIC_PACKET_SCHEMA = vol.Schema(
     {
@@ -50,7 +47,7 @@ WAKE_ON_LAN_SEND_MAGIC_PACKET_SCHEMA = vol.Schema(
 )
 
 PLATFORMS: list[Platform] = [
-    Platform.SWITCH,
+    Platform.BUTTON,
     Platform.SELECT,
 ]
 
@@ -60,14 +57,6 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the remote_boot_manager component."""
     # Register the unauthenticated bootloader view API
     hass.http.register_view(BootloaderView())
-
-    # Support drop-in replacement for `wake_on_lan:` in configuration.yaml
-    if DOMAIN in config:
-        hass.async_create_task(
-            hass.config_entries.flow.async_init(
-                DOMAIN, context={"source": config_entries.SOURCE_IMPORT}, data={}
-            )
-        )
 
     async def send_magic_packet(call: ServiceCall) -> None:
         """Send magic packet to wake up a device."""
