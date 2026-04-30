@@ -65,6 +65,16 @@ class RemoteBootManagerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             },
         )
 
+    async def async_step_import(
+        self,
+        import_info: dict | None = None,  # noqa: ARG002
+    ) -> config_entries.ConfigFlowResult:
+        """Handle import from configuration.yaml."""
+        if self._async_current_entries():
+            return self.async_abort(reason="single_instance_allowed")
+
+        return self.async_create_entry(title="Remote Boot Manager", data={})
+
     async def async_step_reconfigure(
         self,
         user_input: dict | None = None,

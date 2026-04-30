@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 import wakeonlan
+from homeassistant import config_entries
 from homeassistant.components import webhook as ha_webhook
 from homeassistant.const import (
     CONF_BROADCAST_ADDRESS,
@@ -35,6 +36,11 @@ if TYPE_CHECKING:
 
 SERVICE_SEND_MAGIC_PACKET = "send_magic_packet"
 
+CONFIG_SCHEMA = vol.Schema(
+    {DOMAIN: vol.Schema({})},
+    extra=vol.ALLOW_EXTRA,
+)
+
 WAKE_ON_LAN_SEND_MAGIC_PACKET_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_MAC): cv.string,
@@ -50,10 +56,18 @@ PLATFORMS: list[Platform] = [
 
 
 # https://developers.home-assistant.io/docs/config_entries_index/#setting-up-an-entry
-async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # noqa: ARG001
+async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the remote_boot_manager component."""
     # Register the unauthenticated bootloader view API
     hass.http.register_view(BootloaderView())
+
+    # Support drop-in replacement for `wake_on_lan:` in configuration.yaml
+    if DOMAIN in config:
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN, context={"source": config_entries.SOURCE_IMPORT}, data={}
+            )
+        )
 
     async def send_magic_packet(call: ServiceCall) -> None:
         """Send magic packet to wake up a device."""
