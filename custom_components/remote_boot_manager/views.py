@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+from typing import TYPE_CHECKING
 
 from aiohttp import web
 from homeassistant.helpers.device_registry import format_mac
@@ -11,6 +12,9 @@ from homeassistant.helpers.http import HomeAssistantView
 
 from .bootloaders import async_get_bootloader
 from .const import BOOTLOADER_VIEW_URL, DOMAIN
+
+if TYPE_CHECKING:
+    from .manager import RemoteBootManager
 
 LOGGER = logging.getLogger(__name__)
 
@@ -23,8 +27,9 @@ class BootloaderView(HomeAssistantView):
     name = f"api:{DOMAIN}:bootloader"
     requires_auth = False
 
-    def __init__(self) -> None:
+    def __init__(self, manager: RemoteBootManager) -> None:
         """Initialize."""
+        self.manager = manager
 
     async def get(self, request: web.Request, mac_address: str) -> web.Response:
         """Handle GET requests for a specific server's boot configuration."""
@@ -35,18 +40,7 @@ class BootloaderView(HomeAssistantView):
                 {"error": "Invalid MAC address format"}, status=400
             )
 
-        # Find our manager instance from the active config entries
-        manager = None
-        for entry in hass.config_entries.async_entries(DOMAIN):
-            if hasattr(entry, "runtime_data") and entry.runtime_data:
-                manager = entry.runtime_data
-                break
-
-        if not manager:
-            return web.json_response({"error": "Integration not ready"}, status=503)
-
-        server = manager.servers.get(mac_address)
-
+        server = self.manager.servers.get(mac_address)
         if not server:
             LOGGER.warning(
                 "Bootloader request for unknown MAC address: %s", mac_address
@@ -54,6 +48,12 @@ class BootloaderView(HomeAssistantView):
             return web.json_response({"error": "Server not found"}, status=404)
 
         bootloader_name = server.bootloader
+        if not bootloader_name:
+            LOGGER.error("No bootloader configured for %s", mac_address)
+            return web.json_response(
+                {"error": "No bootloader configured for this server"}, status=400
+            )
+
         bootloader = await async_get_bootloader(hass, bootloader_name)
         if not bootloader:
             LOGGER.error(
@@ -64,8 +64,8 @@ class BootloaderView(HomeAssistantView):
         # Call the appropriate bootloader instance to generate the response
         try:
             server_copy = dataclasses.asdict(server)
-            server_copy["next_boot_option"] = manager.async_consume_next_boot_option(
-                mac_address
+            server_copy["next_boot_option"] = (
+                self.manager.async_consume_next_boot_option(mac_address)
             )
             return bootloader.generate_boot_config(server_copy)
         except Exception:

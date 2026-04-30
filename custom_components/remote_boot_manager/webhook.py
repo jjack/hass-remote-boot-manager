@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -19,14 +19,9 @@ from homeassistant.helpers.device_registry import format_mac
 from .const import (
     CONF_BOOT_OPTIONS,
     CONF_BOOTLOADER,
-    DOMAIN,
     LOGGER,
     WEBHOOK_MAX_PAYLOAD_BYTES,
 )
-
-if TYPE_CHECKING:
-    from homeassistant.core import HomeAssistant
-
 
 WEBHOOK_SCHEMA = vol.Schema(
     {
@@ -73,37 +68,3 @@ async def async_validate_webhook_payload(
         return None, web.Response(status=400, text=f"Invalid payload format: {err}")
 
     return payload, None
-
-
-async def handle_boot_options_ingest_webhook(
-    hass: HomeAssistant, _webhook_id: str, request: web.Request
-) -> web.Response:
-    """Handle incoming boot options push requests from bare-metal Go agents."""
-    try:
-        payload, error_response = await async_validate_webhook_payload(request)
-        if error_response:
-            return error_response
-
-        if payload is None:
-            return web.Response(status=500, text="Unexpected empty payload")
-
-        # Find our manager instance from the active config entries
-        manager_found = False
-        mac_address = payload.get(CONF_MAC)
-        for entry in hass.config_entries.async_entries(DOMAIN):
-            LOGGER.debug(
-                "Checking config entry %s for webhook payload processing",
-                entry.entry_id,
-            )
-            if hasattr(entry, "runtime_data") and entry.runtime_data:
-                entry.runtime_data.async_process_webhook_payload(mac_address, payload)
-                manager_found = True
-                break
-
-        if not manager_found:
-            return web.Response(status=503, text="Integration not ready")
-
-        return web.Response(status=200, text="OK")
-    except Exception as err:  # noqa: BLE001
-        LOGGER.error("Failed to process webhook: %s", err)
-        return web.Response(status=500, text="Internal Server Error")

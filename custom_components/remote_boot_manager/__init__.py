@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 import wakeonlan
+from aiohttp import web
 from homeassistant.components import webhook as ha_webhook
 from homeassistant.const import (
     CONF_BROADCAST_ADDRESS,
@@ -25,7 +26,7 @@ from homeassistant.helpers.storage import Store
 from .const import DOMAIN, WEBHOOK_NAME
 from .manager import RemoteBootManager
 from .views import BootloaderView
-from .webhook import handle_boot_options_ingest_webhook
+from .webhook import async_validate_webhook_payload
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant, ServiceCall
@@ -54,8 +55,6 @@ PLATFORMS: list[Platform] = [
 # https://developers.home-assistant.io/docs/config_entries_index/#setting-up-an-entry
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # noqa: ARG001
     """Set up the remote_boot_manager component."""
-    # Register the unauthenticated bootloader view API
-    hass.http.register_view(BootloaderView())
 
     async def send_magic_packet(call: ServiceCall) -> None:
         """Send magic packet to wake up a device."""
@@ -89,7 +88,33 @@ async def async_setup_entry(
     await manager.async_load()
     entry.runtime_data = manager
 
-    # Register the webhook globally since it iterates over all entries
+    # Register the unauthenticated bootloader view API with direct manager access
+    hass.http.register_view(BootloaderView(manager))
+
+    # Create a bound webhook handler closure
+    async def handle_webhook(
+        hass: HomeAssistant,  # noqa: ARG001
+        webhook_id: str,  # noqa: ARG001
+        request: web.Request,
+    ) -> web.Response:
+        """Handle incoming boot options push requests bound to this manager."""
+        try:
+            payload, error_response = await async_validate_webhook_payload(request)
+            if error_response:
+                return error_response
+            if payload is None:
+                return web.Response(status=500, text="Unexpected empty payload")
+
+            mac_address = payload.get(CONF_MAC)  # This is guaranteed by the schema
+            if not mac_address:
+                # This case should be impossible if schema validation is correct
+                return web.Response(status=400, text="MAC address missing from payload")
+
+            manager.async_process_webhook_payload(mac_address, payload)
+            return web.Response(status=200, text="OK")
+        except Exception:  # noqa: BLE001
+            return web.Response(status=500, text="Internal Server Error")
+
     webhook_id = entry.data.get("webhook_id")
     if webhook_id:
         ha_webhook.async_register(
@@ -97,7 +122,7 @@ async def async_setup_entry(
             DOMAIN,
             WEBHOOK_NAME,
             webhook_id,
-            handle_boot_options_ingest_webhook,
+            handle_webhook,
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
