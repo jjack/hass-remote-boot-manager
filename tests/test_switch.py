@@ -375,3 +375,54 @@ async def test_async_setup_entry(hass):
         )
         callback("22:33:44:55:66:77")
         assert async_add_entities.call_count == 2
+
+
+async def test_async_update_skips_when_ping_task_active(hass):
+    """Test that async_update skips polling if there is an active ping task."""
+    server = RemoteServer(
+        mac="00:11:22:33:44:55", name="Test Server", host="192.168.1.100"
+    )
+    switch = RemoteBootManagerSwitch(hass, server)
+
+    # Mock an active ping task
+    mock_task = MagicMock()
+    mock_task.done.return_value = False
+    switch._ping_task = mock_task
+
+    with patch(
+        "custom_components.remote_boot_manager.switch._async_ping_host"
+    ) as mock_ping:
+        await switch.async_update()
+        # Polling should be skipped
+        mock_ping.assert_not_called()
+
+
+async def test_async_update_polls_when_no_active_task(hass):
+    """Test that async_update polls normally if the ping task is done or None."""
+    server = RemoteServer(
+        mac="00:11:22:33:44:55", name="Test Server", host="192.168.1.100"
+    )
+    switch = RemoteBootManagerSwitch(hass, server)
+
+    with patch(
+        "custom_components.remote_boot_manager.switch._async_ping_host",
+        return_value=True,
+    ) as mock_ping:
+        # Test when _ping_task is None
+        switch._ping_task = None
+        await switch.async_update()
+        mock_ping.assert_called_once_with("192.168.1.100")
+        assert switch._attr_is_on is True
+
+    with patch(
+        "custom_components.remote_boot_manager.switch._async_ping_host",
+        return_value=False,
+    ) as mock_ping:
+        # Test when _ping_task is done
+        mock_task = MagicMock()
+        mock_task.done.return_value = True
+        switch._ping_task = mock_task
+
+        await switch.async_update()
+        mock_ping.assert_called_once_with("192.168.1.100")
+        assert switch._attr_is_on is False

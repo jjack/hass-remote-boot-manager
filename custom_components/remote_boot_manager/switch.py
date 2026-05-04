@@ -162,6 +162,11 @@ class RemoteBootManagerSwitch(SwitchEntity):
         """Update entity state via standard polling."""
         if not self.server.host:
             return
+
+        # don't change the state until the ping task is done
+        if self._ping_task and not self._ping_task.done():
+            return
+
         self._attr_is_on = await _async_ping_host(self.server.host)
 
     async def async_turn_on(self, **kwargs: Any) -> None:  # noqa: ARG002
