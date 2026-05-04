@@ -11,8 +11,7 @@ from custom_components.remote_boot_manager.views import BootloaderView
 
 async def test_bootloader_view_invalid_mac(hass: HomeAssistant) -> None:
     """Test Invalid MAC."""
-    mock_manager = MagicMock()
-    view = BootloaderView(mock_manager)
+    view = BootloaderView()
     mock_request = MagicMock(spec=web.Request)
     mock_request.app = {"hass": hass}
     with patch(
@@ -29,7 +28,12 @@ async def test_bootloader_view_server_not_found(hass: HomeAssistant) -> None:
 
     mock_manager = MagicMock()
     mock_manager.servers = {}
-    view = BootloaderView(mock_manager)
+
+    mock_entry = MagicMock()
+    mock_entry.runtime_data = mock_manager
+    hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+    view = BootloaderView()
 
     resp = await view.get(mock_request, "aa:bb:cc:dd:ee:ff")
     assert resp.status == 404
@@ -48,7 +52,12 @@ async def test_bootloader_view_no_bootloader(hass: HomeAssistant) -> None:
             bootloader=None,
         )
     }
-    view = BootloaderView(mock_manager)
+
+    mock_entry = MagicMock()
+    mock_entry.runtime_data = mock_manager
+    hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+    view = BootloaderView()
 
     resp = await view.get(mock_request, "aa:bb:cc:dd:ee:ff")
     assert resp.status == 400
@@ -67,7 +76,12 @@ async def test_bootloader_view_unsupported_bootloader(hass: HomeAssistant) -> No
             bootloader="unsupported",
         )
     }
-    view = BootloaderView(mock_manager)
+
+    mock_entry = MagicMock()
+    mock_entry.runtime_data = mock_manager
+    hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+    view = BootloaderView()
 
     with patch(
         "custom_components.remote_boot_manager.views.async_get_bootloader",
@@ -91,7 +105,12 @@ async def test_bootloader_view_exception(hass: HomeAssistant) -> None:
         )
     }
     mock_request.query = {}
-    view = BootloaderView(mock_manager)
+
+    mock_entry = MagicMock()
+    mock_entry.runtime_data = mock_manager
+    hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+    view = BootloaderView()
 
     mock_bootloader = MagicMock()
     mock_bootloader.generate_boot_config.side_effect = Exception("Boom")
@@ -118,7 +137,12 @@ async def test_bootloader_view_success_read_only(hass: HomeAssistant) -> None:
             next_boot_option="windows",
         )
     }
-    view = BootloaderView(mock_manager)
+
+    mock_entry = MagicMock()
+    mock_entry.runtime_data = mock_manager
+    hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+    view = BootloaderView()
 
     mock_bootloader = MagicMock()
     mock_bootloader.generate_boot_config.return_value = web.Response(text="ok")
@@ -156,7 +180,9 @@ async def test_bootloader_view_success_consume(hass: HomeAssistant) -> None:
         )
     }
     mock_manager.async_consume_next_boot_option.return_value = "windows"
-    view = BootloaderView(mock_manager)
+
+    mock_entry.runtime_data = mock_manager
+    view = BootloaderView()
 
     mock_bootloader = MagicMock()
     mock_bootloader.generate_boot_config.return_value = web.Response(text="ok")
