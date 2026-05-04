@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-from typing import TYPE_CHECKING
 
 from aiohttp import web
 from homeassistant.helpers.device_registry import format_mac
@@ -12,9 +11,6 @@ from homeassistant.helpers.http import HomeAssistantView
 
 from .bootloaders import async_get_bootloader
 from .const import BOOTLOADER_VIEW_URL, DOMAIN
-
-if TYPE_CHECKING:
-    from .manager import RemoteBootManager
 
 LOGGER = logging.getLogger(__name__)
 
@@ -26,10 +22,6 @@ class BootloaderView(HomeAssistantView):
     url = BOOTLOADER_VIEW_URL
     name = f"api:{DOMAIN}:bootloader"
     requires_auth = False
-
-    def __init__(self, manager: RemoteBootManager) -> None:
-        """Initialize."""
-        self.manager = manager
 
     async def get(self, request: web.Request, mac_address: str) -> web.Response:
         """
@@ -46,47 +38,49 @@ class BootloaderView(HomeAssistantView):
         """
         hass = request.app["hass"]
         mac_address = format_mac(mac_address)
-        if not mac_address:
-            return web.json_response(
-                {"error": "Invalid MAC address format"}, status=400
-            )
 
-        server = self.manager.servers.get(mac_address)
-        if not server:
-            # this is a wake on lan entry, so this is probably a misconfiguration
+        error_msg = None
+        status = 500
+        entries = None
+        manager = None
+        server = None
+        bootloader = None
+
+        if not mac_address:
+            error_msg, status = "Invalid MAC address format", 400
+        elif not (entries := hass.config_entries.async_entries(DOMAIN)):
+            error_msg = "Integration not configured"
+        elif not (manager := entries[0].runtime_data):
+            error_msg = "Integration not ready"
+        elif not (server := manager.servers.get(mac_address)):
             LOGGER.warning(
                 "Bootloader request for unknown MAC address: %s", mac_address
             )
-            return web.json_response({"error": "Server not found"}, status=404)
-
-        bootloader_name = server.bootloader
-        if not bootloader_name:
+            error_msg, status = "Server not found", 404
+        elif not (bootloader_name := server.bootloader):
             LOGGER.error("No bootloader configured for %s", mac_address)
-            return web.json_response(
-                {"error": "No bootloader configured for this server"}, status=400
-            )
-
-        bootloader = await async_get_bootloader(hass, bootloader_name)
-        if not bootloader:
+            error_msg, status = "No bootloader configured for this server", 400
+        elif not (bootloader := await async_get_bootloader(hass, bootloader_name)):
             LOGGER.error(
                 "Bootloader module %s not found for %s", bootloader_name, mac_address
             )
-            return web.json_response({"error": "Bootloader not supported"}, status=400)
+            error_msg, status = "Bootloader not supported", 400
+
+        if error_msg or not bootloader or not server or not manager or not entries:
+            return web.json_response(
+                {"error": error_msg or "Internal Server Error"}, status=status
+            )
 
         # Call the appropriate bootloader instance to generate the response and (maybe)
         # consume the next boot option.
         try:
             token = request.query.get("token")
-            valid_tokens = {
-                entry.data["webhook_id"]
-                for entry in hass.config_entries.async_entries(DOMAIN)
-                if "webhook_id" in entry.data
-            }
+            valid_token = entries[0].data.get("webhook_id")
 
             server_copy = dataclasses.asdict(server)
-            if token and token in valid_tokens:
+            if token and token == valid_token:
                 server_copy["next_boot_option"] = (
-                    self.manager.async_consume_next_boot_option(mac_address)
+                    manager.async_consume_next_boot_option(mac_address)
                 )
             else:
                 server_copy["next_boot_option"] = server.next_boot_option
