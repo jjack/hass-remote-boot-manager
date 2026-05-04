@@ -62,14 +62,14 @@ class RemoteBootManagerButton(ButtonEntity):
 
         broadcast_info = []
         if b_addr := server_data.broadcast_address:
-            broadcast_info.append(f"IP: {b_addr}")
+            broadcast_info.append(f"Broadcast: {b_addr}")
         if b_port := server_data.broadcast_port:
             broadcast_info.append(f"Port: {b_port}")
 
         model_name = (
-            f"Wake-on-LAN ({', '.join(broadcast_info)})"
+            f"Remote Boot Manager ({', '.join(broadcast_info)})"
             if broadcast_info
-            else "Wake-on-LAN"
+            else "Remote Boot Manager"
         )
 
         self._attr_device_info = DeviceInfo(
@@ -82,11 +82,11 @@ class RemoteBootManagerButton(ButtonEntity):
 
     async def async_press(self) -> None:
         """Handle the button press."""
-        kwargs = {}
         server = self.manager.servers.get(self.mac_address)
         if not server:
             return
 
+        kwargs = {}
         if broadcast_address := server.broadcast_address:
             kwargs["ip_address"] = broadcast_address
         if broadcast_port := server.broadcast_port:

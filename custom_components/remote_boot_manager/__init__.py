@@ -70,6 +70,9 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # n
             partial(wakeonlan.send_magic_packet, mac_address, **kwargs)
         )
 
+    # Register the send_magic_packet service to duplicate the functionality of the
+    # built-in Wake on LAN integration so this can be called directly from
+    # automations, scripts, or other integrations.
     hass.services.async_register(
         DOMAIN,
         SERVICE_SEND_MAGIC_PACKET,
@@ -89,34 +92,30 @@ async def async_setup_entry(
     await manager.async_load()
     entry.runtime_data = manager
 
-    # Register the unauthenticated bootloader view API
+    # Register the unauthenticated bootloader get request view
+    # (ie - GET /api/remote_boot_manager/bootloader/{mac_address})  # noqa: ERA001
     hass.http.register_view(BootloaderView())
 
-    # Create a bound webhook handler closure
     async def handle_webhook(
         hass: HomeAssistant,  # noqa: ARG001
         webhook_id: str,  # noqa: ARG001
         request: web.Request,
     ) -> web.Response:
-        """Handle incoming boot options push requests bound to this manager."""
+        """Handle incoming boot option push requests."""
         try:
-            LOGGER.debug("got webhook request: %s", request)
+            LOGGER.debug("received webhook request: %s", request)
             payload, error_response = await async_validate_webhook_payload(request)
             if error_response:
                 return error_response
             if payload is None:
                 return web.Response(status=500, text="Unexpected empty payload")
 
-            mac_address = payload.get(CONF_MAC)  # This is guaranteed by the schema
-            if not mac_address:
-                # This case should be impossible if schema validation is correct
-                return web.Response(status=400, text="MAC address missing from payload")
-
-            manager.async_process_webhook_payload(mac_address, payload)
+            manager.async_process_webhook_payload(payload.get(CONF_MAC), payload)
             return web.Response(status=200, text="OK")
         except Exception:  # noqa: BLE001
             return web.Response(status=500, text="Internal Server Error")
 
+    # Register the webhook to receive the boot options push requests
     webhook_id = entry.data.get("webhook_id")
     if webhook_id:
         ha_webhook.async_register(
@@ -156,9 +155,8 @@ async def async_remove_entry(
     entry: RemoteBootManagerConfigEntry,
 ) -> None:
     """Handle removal of an entry."""
-    # Since async_unload_entry unregisters the webhook,
-    # and Home Assistant automatically handles device/entity removal,
-    # we just need to purge the manager data.
+    # Since async_unload_entry unregisters the webhook and Home Assistant automatically
+    # handles device/entity removal, we just need to purge the manager data.
     if hasattr(entry, "runtime_data") and entry.runtime_data:
         await entry.runtime_data.async_purge_data()
     else:

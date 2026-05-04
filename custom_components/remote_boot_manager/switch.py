@@ -105,6 +105,9 @@ async def async_setup_platform(
         off_action=config.get("turn_off"),
     )
 
+    # Track yaml servers for the Options Flow UI display
+    hass.data.setdefault(f"{DOMAIN}.yaml_servers", []).append(server)
+
     async_add_entities([RemoteBootManagerSwitch(hass, server)])
 
 
