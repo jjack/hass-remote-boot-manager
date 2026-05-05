@@ -11,7 +11,7 @@ CONF_TURN_OFF = "turn_off"
 DEFAULT_NAME = "Remote Boot Manager"
 
 DOMAIN = "remote_boot_manager"
-DOMAIN_DATA = f"{DOMAIN}.servers"
+DOMAIN_DATA = f"{DOMAIN}.hosts"
 
 DEFAULT_BOOT_OPTION_NONE = "(none)"
 
@@ -23,7 +23,7 @@ BOOTLOADER_VIEW_URL = "/api/remote_boot_manager/{mac_address}"
 
 SAVE_DELAY = 15.0  # seconds to debounce saving to storage after changes
 
-SIGNAL_NEW_SERVER = f"{DOMAIN}_new_server"
+SIGNAL_NEW_HOST = f"{DOMAIN}_new_host"
 
 WAIT_FOR_HOST_POWER_SECONDS = 10
 

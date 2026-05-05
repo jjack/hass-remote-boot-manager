@@ -175,7 +175,7 @@ async def async_remove_entry(
         await entry.runtime_data.async_purge_data()
     else:
         # Fallback if entry was never loaded
-        await Store(hass, 1, f"{DOMAIN}.servers").async_remove()
+        await Store(hass, 1, f"{DOMAIN}.hosts").async_remove()
 
 
 async def async_remove_config_entry_device(
@@ -196,8 +196,8 @@ async def async_remove_config_entry_device(
         None,
     )
 
-    # Remove the server from our internal state
+    # Remove the host from our internal state
     if mac_address:
-        manager.async_remove_server(mac_address)
+        manager.async_remove_host(mac_address)
 
     return True

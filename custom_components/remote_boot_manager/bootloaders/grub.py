@@ -15,9 +15,9 @@ class GrubBootloader(BootloaderBase):
 
     name = "grub"
 
-    def generate_boot_config(self, server: dict[str, Any]) -> web.Response:
+    def generate_boot_config(self, host: dict[str, Any]) -> web.Response:
         """Generate the GRUB boot configuration response."""
-        next_boot_option = server.get("next_boot_option", "(none)")
+        next_boot_option = host.get("next_boot_option", "(none)")
         if next_boot_option != "(none)":
             content = f"set default='{next_boot_option}'\n"
         else:

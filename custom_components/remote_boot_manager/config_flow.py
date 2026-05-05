@@ -136,47 +136,45 @@ class RemoteBootManagerOptionsFlow(config_entries.OptionsFlow):
     ) -> config_entries.ConfigFlowResult:
         """Manage the options."""
         manager = self._config_entry.runtime_data
-        if not manager or not manager.servers:
-            return self.async_abort(reason="no_servers")
+        if not manager or not manager.hosts:
+            return self.async_abort(reason="no_hosts")
 
         if user_input is not None:
-            self.selected_mac = user_input["server"]
-            return await self.async_step_server_config()
+            self.selected_mac = user_input["host"]
+            return await self.async_step_host_config()
 
-        servers = {
-            mac: f"{server.name} ({mac})" for mac, server in manager.servers.items()
-        }
+        hosts = {mac: f"{host.name} ({mac})" for mac, host in manager.hosts.items()}
 
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Required("server"): vol.In(servers),
+                    vol.Required("host"): vol.In(hosts),
                 }
             ),
         )
 
-    async def async_step_server_config(
+    async def async_step_host_config(
         self, user_input: dict | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Configure specific server."""
+        """Configure specific host."""
         manager = self._config_entry.runtime_data
 
         if not self.selected_mac:
-            return self.async_abort(reason="no_servers")
+            return self.async_abort(reason="no_hosts")
 
-        server = manager.servers[self.selected_mac]
+        host = manager.hosts[self.selected_mac]
 
         if user_input is not None:
             if turn_off_script := user_input.get("turn_off_script"):
                 # Save as a script sequence action
-                server.off_action = [{"action": turn_off_script}]
+                host.off_action = [{"action": turn_off_script}]
             else:
-                server.off_action = None
+                host.off_action = None
 
-            server.address = user_input.get(CONF_ADDRESS)
-            server.broadcast_address = user_input.get(CONF_BROADCAST_ADDRESS)
-            server.broadcast_port = user_input.get(CONF_BROADCAST_PORT)
+            host.address = user_input.get(CONF_ADDRESS)
+            host.broadcast_address = user_input.get(CONF_BROADCAST_ADDRESS)
+            host.broadcast_port = user_input.get(CONF_BROADCAST_PORT)
 
             # Persist the changes to storage
             manager.save()
@@ -187,11 +185,11 @@ class RemoteBootManagerOptionsFlow(config_entries.OptionsFlow):
 
         default_script = vol.UNDEFINED
         if (
-            server.off_action
-            and isinstance(server.off_action, list)
-            and len(server.off_action) > 0
+            host.off_action
+            and isinstance(host.off_action, list)
+            and len(host.off_action) > 0
         ):
-            action = server.off_action[0].get("action") or server.off_action[0].get(
+            action = host.off_action[0].get("action") or host.off_action[0].get(
                 "service"
             )
             if action:
@@ -213,31 +211,31 @@ class RemoteBootManagerOptionsFlow(config_entries.OptionsFlow):
         # Address values can be edited here for debugging but will be overwritten by
         # the next agent webhook.
         data_schema[
-            vol.Optional(CONF_ADDRESS, description={"suggested_value": server.address})
-            if server.address is not None
+            vol.Optional(CONF_ADDRESS, description={"suggested_value": host.address})
+            if host.address is not None
             else vol.Optional(CONF_ADDRESS)
         ] = str
         data_schema[
             vol.Optional(
                 CONF_BROADCAST_ADDRESS,
-                description={"suggested_value": server.broadcast_address},
+                description={"suggested_value": host.broadcast_address},
             )
-            if server.broadcast_address is not None
+            if host.broadcast_address is not None
             else vol.Optional(CONF_BROADCAST_ADDRESS)
         ] = str
         data_schema[
             vol.Optional(
                 CONF_BROADCAST_PORT,
-                description={"suggested_value": server.broadcast_port},
+                description={"suggested_value": host.broadcast_port},
             )
-            if server.broadcast_port is not None
+            if host.broadcast_port is not None
             else vol.Optional(CONF_BROADCAST_PORT)
         ] = int
 
         return self.async_show_form(
-            step_id="server_config",
+            step_id="host_config",
             data_schema=vol.Schema(data_schema),
             description_placeholders={
-                "server_name": server.name,
+                "host_name": host.name,
             },
         )

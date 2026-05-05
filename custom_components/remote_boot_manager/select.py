@@ -12,7 +12,7 @@ from homeassistant.helpers.device_registry import (
 )
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from .const import DEFAULT_BOOT_OPTION_NONE, DOMAIN, LOGGER, SIGNAL_NEW_SERVER
+from .const import DEFAULT_BOOT_OPTION_NONE, DOMAIN, LOGGER, SIGNAL_NEW_HOST
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -31,18 +31,18 @@ async def async_setup_entry(
     manager = entry.runtime_data
 
     @callback
-    def async_add_server_select(mac_address: str) -> None:
-        """Add a select entity for a newly discovered server."""
+    def async_add_host_select(mac_address: str) -> None:
+        """Add a select entity for a newly discovered host."""
         LOGGER.debug("Adding select entity for %s", mac_address)
         async_add_entities([RemoteBootManagerSelect(manager, mac_address)])
 
-    # Add entities for servers that already exist in the manager
-    for mac in manager.servers:
-        async_add_server_select(mac)
+    # Add entities for hosts that already exist in the manager
+    for mac in manager.hosts:
+        async_add_host_select(mac)
 
-    # Listen for the signal to add new servers discovered via webhook
+    # Listen for the signal to add new hosts discovered via webhook
     entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_NEW_SERVER, async_add_server_select)
+        async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_select)
     )
 
 
@@ -59,12 +59,12 @@ class RemoteBootManagerSelect(SelectEntity):
         self._attr_name = "Next Boot Option"
         self._attr_has_entity_name = True
 
-        server_data = self.manager.servers[mac_address]
+        host_data = self.manager.hosts[mac_address]
 
         broadcast_info = []
-        if broadcast_address := server_data.broadcast_address:
+        if broadcast_address := host_data.broadcast_address:
             broadcast_info.append(f"Broadcast: {broadcast_address}")
-        if broadcast_port := server_data.broadcast_port:
+        if broadcast_port := host_data.broadcast_port:
             broadcast_info.append(f"Port: {broadcast_port}")
 
         model_name = (
@@ -75,7 +75,7 @@ class RemoteBootManagerSelect(SelectEntity):
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, mac_address)},
-            name=server_data.name,
+            name=host_data.name,
             manufacturer="Remote Boot Manager",
             model=model_name,
             connections={(CONNECTION_NETWORK_MAC, mac_address)},
@@ -84,10 +84,8 @@ class RemoteBootManagerSelect(SelectEntity):
     @property
     def options(self) -> list[str]:
         """Return the list of available boot options."""
-        server_data = self.manager.servers.get(self.mac_address)
-        opts = (
-            server_data.boot_options if server_data and server_data.boot_options else []
-        )
+        host_data = self.manager.hosts.get(self.mac_address)
+        opts = host_data.boot_options if host_data and host_data.boot_options else []
 
         # Ensure the default "(none)" is always a valid option
         if DEFAULT_BOOT_OPTION_NONE not in opts:
@@ -98,10 +96,10 @@ class RemoteBootManagerSelect(SelectEntity):
     @property
     def current_option(self) -> str | None:
         """Return the currently pending boot option."""
-        server_data = self.manager.servers.get(self.mac_address)
+        host_data = self.manager.hosts.get(self.mac_address)
         return (
-            server_data.next_boot_option
-            if server_data and server_data.next_boot_option
+            host_data.next_boot_option
+            if host_data and host_data.next_boot_option
             else DEFAULT_BOOT_OPTION_NONE
         )
 

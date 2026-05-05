@@ -36,7 +36,7 @@ async def test_async_remove_entry_without_runtime_data(hass):
 
         await async_remove_entry(hass, mock_entry)
 
-        mock_store_class.assert_called_once_with(hass, 1, f"{DOMAIN}.servers")
+        mock_store_class.assert_called_once_with(hass, 1, f"{DOMAIN}.hosts")
         mock_store_instance.async_remove.assert_awaited_once()
 
 
@@ -51,7 +51,7 @@ async def test_async_reload_entry(hass):
 
 
 async def test_async_remove_config_entry_device(hass):
-    """Test that removing a device also removes the server from the manager."""
+    """Test that removing a device also removes the host from the manager."""
     mock_manager = MagicMock()
     mock_config_entry = MagicMock()
     mock_config_entry.runtime_data = mock_manager
@@ -64,7 +64,7 @@ async def test_async_remove_config_entry_device(hass):
     )
 
     assert result is True
-    mock_manager.async_remove_server.assert_called_once_with("00:11:22:33:44:55")
+    mock_manager.async_remove_host.assert_called_once_with("00:11:22:33:44:55")
 
 
 async def test_async_remove_config_entry_device_no_match(hass):
@@ -81,7 +81,7 @@ async def test_async_remove_config_entry_device_no_match(hass):
     )
 
     assert result is True
-    mock_manager.async_remove_server.assert_not_called()
+    mock_manager.async_remove_host.assert_not_called()
 
 
 async def test_async_setup_entry(hass):

@@ -17,7 +17,7 @@ class BootloaderBase:
 
     name: str = "base"
 
-    def generate_boot_config(self, server: dict[str, Any]) -> web.Response:
+    def generate_boot_config(self, host: dict[str, Any]) -> web.Response:
         """Generate the boot configuration response."""
         raise NotImplementedError
 

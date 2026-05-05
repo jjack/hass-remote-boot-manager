@@ -3,7 +3,7 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from custom_components.remote_boot_manager.manager import RemoteServer
+from custom_components.remote_boot_manager.manager import RemoteHost
 from custom_components.remote_boot_manager.switch import (
     RemoteBootManagerSwitch,
     _async_ping_host,
@@ -34,14 +34,14 @@ async def test_async_ping_host_dead():
 async def test_switch_async_turn_on_starts_task(hass):
     """Test switch async_turn_on sends packet and starts the background ping loop."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Server",
+            name="Test Host",
             address="test.local",
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
     switch.async_write_ha_state = MagicMock()
 
@@ -64,16 +64,16 @@ async def test_switch_async_turn_on_starts_task(hass):
 
 
 async def test_switch_no_address_no_poll(hass):
-    """Test that a server without a ping target doesn't poll or update state via ping."""
+    """Test that a host without a ping target doesn't poll or update state via ping."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Server",
+            name="Test Host",
             address="",
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
 
     assert switch.should_poll is False
@@ -88,16 +88,16 @@ async def test_switch_no_address_no_poll(hass):
 async def test_switch_async_turn_on_with_broadcast_and_cancels_task(hass):
     """Test sending a magic packet with custom broadcast data, cancelling old tasks."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Server",
+            name="Test Host",
             address="test.local",
             broadcast_address="192.168.1.255",
             broadcast_port=9,
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
     switch.async_write_ha_state = MagicMock()
 
@@ -130,14 +130,14 @@ async def test_switch_async_turn_on_with_broadcast_and_cancels_task(hass):
 async def test_switch_async_turn_off(hass):
     """Test the turn off action."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Server",
+            name="Test Host",
             address="test.local",
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
     switch.async_write_ha_state = MagicMock()
     switch._attr_is_on = True
@@ -158,14 +158,14 @@ async def test_switch_async_turn_off(hass):
 async def test_switch_async_turn_off_cancels_task(hass):
     """Test that turn off cancels an existing ping task."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Server",
+            name="Test Host",
             address="test.local",
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
     switch.async_write_ha_state = MagicMock()
 
@@ -183,14 +183,14 @@ async def test_switch_async_turn_off_cancels_task(hass):
 async def test_switch_async_ping_loop_success(hass):
     """Test the background ping loop resolving successfully."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
             name="Test",
             address="test.local",
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
     switch.async_write_ha_state = MagicMock()
     switch._attr_is_on = True
@@ -211,14 +211,14 @@ async def test_switch_async_ping_loop_success(hass):
 async def test_switch_async_ping_loop_timeout(hass):
     """Test the background ping loop timing out after 3 minutes."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
             name="Test",
             address="test.local",
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
     switch.async_write_ha_state = MagicMock()
     switch._attr_is_on = True
@@ -239,14 +239,14 @@ async def test_switch_async_ping_loop_timeout(hass):
 async def test_switch_async_ping_loop_off_success(hass):
     """Test the background ping off loop resolving successfully."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
             name="Test",
             address="test.local",
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
     switch.async_write_ha_state = MagicMock()
     switch._attr_is_on = False
@@ -267,14 +267,14 @@ async def test_switch_async_ping_loop_off_success(hass):
 async def test_switch_async_ping_loop_off_timeout(hass):
     """Test the background ping off loop timing out after 3 minutes."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
             name="Test",
             address="test.local",
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
     switch.async_write_ha_state = MagicMock()
     switch._attr_is_on = False
@@ -296,7 +296,7 @@ async def test_async_setup_entry(hass):
     """Test the setup entry logic, including the dispatcher connection."""
     mock_entry = MagicMock()
     mock_manager = MagicMock()
-    mock_manager.servers = {
+    mock_manager.hosts = {
         "00:11:22:33:44:55": MagicMock(
             mac="00:11:22:33:44:55",
             name="test switch 1",
@@ -329,7 +329,7 @@ async def test_async_setup_entry(hass):
 
         # Verify the dispatcher callback adds the new entity
         callback = mock_connect.call_args[0][2]
-        mock_manager.servers["11:22:33:44:55:66"] = MagicMock(
+        mock_manager.hosts["11:22:33:44:55:66"] = MagicMock(
             mac="11:22:33:44:55:66",
             name="new switch",
             address="new.local",
@@ -343,12 +343,12 @@ async def test_async_setup_entry(hass):
 
 async def test_async_update_skips_when_ping_task_active(hass):
     """Test that async_update skips polling if there is an active ping task."""
-    server = RemoteServer(
+    host = RemoteHost(
         mac="00:11:22:33:44:55",
-        name="Test Server",
+        name="Test Host",
         address="test.local",
     )
-    switch = RemoteBootManagerSwitch(hass, server)
+    switch = RemoteBootManagerSwitch(hass, host)
 
     # Mock an active ping task
     mock_task = MagicMock()
@@ -365,12 +365,12 @@ async def test_async_update_skips_when_ping_task_active(hass):
 
 async def test_async_update_polls_when_no_active_task(hass):
     """Test that async_update polls normally if the ping task is done or None."""
-    server = RemoteServer(
+    host = RemoteHost(
         mac="00:11:22:33:44:55",
-        name="Test Server",
+        name="Test Host",
         address="test.local",
     )
-    switch = RemoteBootManagerSwitch(hass, server)
+    switch = RemoteBootManagerSwitch(hass, host)
 
     with patch(
         "custom_components.remote_boot_manager.switch._async_ping_host",
@@ -399,14 +399,14 @@ async def test_async_update_polls_when_no_active_task(hass):
 async def test_switch_will_remove_from_hass_cancels_task(hass):
     """Test that removing the entity cancels an active ping task."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Server",
+            name="Test Host",
             address="test.local",
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
 
     mock_task = MagicMock()
@@ -421,14 +421,14 @@ async def test_switch_will_remove_from_hass_cancels_task(hass):
 async def test_switch_will_remove_from_hass_ignores_done_task(hass):
     """Test that removing the entity ignores an already done ping task."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Server",
+            name="Test Host",
             address="test.local",
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
 
     mock_task = MagicMock()
@@ -443,14 +443,14 @@ async def test_switch_will_remove_from_hass_ignores_done_task(hass):
 async def test_switch_async_ping_loop_cancelled_initial_sleep(hass):
     """Test the background ping loop handles cancellation correctly during initial sleep."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
             name="Test",
             address="test.local",
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
     switch.async_write_ha_state = MagicMock()
 
@@ -464,14 +464,14 @@ async def test_switch_async_ping_loop_cancelled_initial_sleep(hass):
 async def test_switch_async_ping_loop_cancelled_inner_sleep(hass):
     """Test the background ping loop handles cancellation correctly during loop sleep."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
             name="Test",
             address="test.local",
         )
     }
-    switch = RemoteBootManagerSwitch(hass, manager.servers["00:11:22:33:44:55"])
+    switch = RemoteBootManagerSwitch(hass, manager.hosts["00:11:22:33:44:55"])
     switch.hass = hass
     switch.async_write_ha_state = MagicMock()
 

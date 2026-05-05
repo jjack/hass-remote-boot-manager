@@ -42,13 +42,13 @@ async def setup_integration(hass: HomeAssistant, hass_client, mock_config_entry)
 
 @pytest.fixture
 async def discovered_client(hass: HomeAssistant, setup_integration):
-    """Return a client after discovering a test server via webhook."""
+    """Return a client after discovering a test host via webhook."""
     client = setup_integration
     webhook_url = "/api/webhook/test_webhook_id"
     payload = {
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "name": "test-server",
+        "name": "test-host",
         "bootloader": "grub",
         "boot_options": ["ubuntu", "windows"],
     }
@@ -65,7 +65,7 @@ async def test_webhook_discovery(hass: HomeAssistant, setup_integration) -> None
     payload = {
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "name": "test-server",
+        "name": "test-host",
         "bootloader": "grub",
         "boot_options": ["ubuntu", "windows"],
     }
@@ -74,8 +74,8 @@ async def test_webhook_discovery(hass: HomeAssistant, setup_integration) -> None
     assert resp.status == HTTPStatus.OK
     await hass.async_block_till_done()
 
-    entity_id_select = "select.test_server_next_boot_option"
-    entity_id_switch = "switch.test_server_wake"
+    entity_id_select = "select.test_host_next_boot_option"
+    entity_id_switch = "switch.test_host_wake"
 
     state = hass.states.get(entity_id_select)
     assert state is not None
@@ -94,7 +94,7 @@ async def test_minimal_webhook_discovery_and_switch(
     payload = {
         "mac": "de:ad:be:ef:00:01",
         "address": "minimal.local",
-        "name": "minimal-server",
+        "name": "minimal-host",
         "bootloader": "grub",
         "boot_options": ["ubuntu"],
     }
@@ -104,8 +104,8 @@ async def test_minimal_webhook_discovery_and_switch(
     await hass.async_block_till_done()
 
     # Verify entities are created
-    entity_id_switch = "switch.minimal_server_wake"
-    entity_id_select = "select.minimal_server_next_boot_option"
+    entity_id_switch = "switch.minimal_host_wake"
+    entity_id_select = "select.minimal_host_next_boot_option"
 
     assert hass.states.get(entity_id_switch) is not None
     select_state = hass.states.get(entity_id_select)
@@ -131,7 +131,7 @@ async def test_select_and_bootloader_view(
 ) -> None:
     """Test selecting a boot option and retrieving the bootloader view."""
     client = discovered_client
-    entity_id_select = "select.test_server_next_boot_option"
+    entity_id_select = "select.test_host_next_boot_option"
 
     await hass.services.async_call(
         "select",
@@ -153,9 +153,9 @@ async def test_select_and_bootloader_view(
 async def test_switch_turn_on_does_not_reset_boot_option(
     hass: HomeAssistant, discovered_client
 ) -> None:
-    """Test that turning on the wake server switch sends magic packet and does not reset boot option."""
-    entity_id_select = "select.test_server_next_boot_option"
-    entity_id_switch = "switch.test_server_wake"
+    """Test that turning on the wake host switch sends magic packet and does not reset boot option."""
+    entity_id_select = "select.test_host_next_boot_option"
+    entity_id_switch = "switch.test_host_wake"
 
     # First, select a boot option
     await hass.services.async_call(
@@ -191,8 +191,8 @@ async def test_remove_integration_cleans_up(
     hass: HomeAssistant, discovered_client, mock_config_entry
 ) -> None:
     """Test that removing the integration cleans up devices and entities."""
-    entity_id_select = "select.test_server_next_boot_option"
-    entity_id_switch = "switch.test_server_wake"
+    entity_id_select = "select.test_host_next_boot_option"
+    entity_id_switch = "switch.test_host_wake"
 
     assert await hass.config_entries.async_remove(mock_config_entry.entry_id)
     await hass.async_block_till_done()
@@ -286,7 +286,7 @@ async def test_webhook_internal_server_error(
     payload = {
         "mac": "aa:bb:cc:dd:ee:ff",
         "address": "test.local",
-        "name": "test-server",
+        "name": "test-host",
         "bootloader": "grub",
         "boot_options": ["ubuntu", "windows"],
     }

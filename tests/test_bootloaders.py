@@ -19,11 +19,11 @@ def test_base_bootloader_not_implemented() -> None:
         base.generate_boot_config({})
 
 
-@pytest.mark.parametrize("server_dict", [{}, {"next_boot_option": "(none)"}])
-def test_grub_bootloader_default_option(server_dict) -> None:
+@pytest.mark.parametrize("host_dict", [{}, {"next_boot_option": "(none)"}])
+def test_grub_bootloader_default_option(host_dict) -> None:
     """Test GRUB bootloader generation with default or missing next_boot_option."""
     bootloader = GrubBootloader()
-    response = bootloader.generate_boot_config(server_dict)
+    response = bootloader.generate_boot_config(host_dict)
 
     assert isinstance(response, web.Response)
     assert response.text == ""

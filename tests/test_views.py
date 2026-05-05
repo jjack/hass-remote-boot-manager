@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 from aiohttp import web
 from homeassistant.core import HomeAssistant
 
-from custom_components.remote_boot_manager.manager import RemoteServer
+from custom_components.remote_boot_manager.manager import RemoteHost
 from custom_components.remote_boot_manager.views import BootloaderView
 
 
@@ -23,13 +23,13 @@ async def test_bootloader_view_invalid_mac(hass: HomeAssistant) -> None:
         assert resp.status == HTTPStatus.BAD_REQUEST
 
 
-async def test_bootloader_view_server_not_found(hass: HomeAssistant) -> None:
-    """Test server not found."""
+async def test_bootloader_view_host_not_found(hass: HomeAssistant) -> None:
+    """Test host not found."""
     mock_request = MagicMock(spec=web.Request)
     mock_request.app = {"hass": hass}
 
     mock_manager = MagicMock()
-    mock_manager.servers = {}
+    mock_manager.hosts = {}
 
     mock_entry = MagicMock()
     mock_entry.runtime_data = mock_manager
@@ -42,13 +42,13 @@ async def test_bootloader_view_server_not_found(hass: HomeAssistant) -> None:
 
 
 async def test_bootloader_view_no_bootloader(hass: HomeAssistant) -> None:
-    """Test server with no bootloader configured."""
+    """Test host with no bootloader configured."""
     mock_request = MagicMock(spec=web.Request)
     mock_request.app = {"hass": hass}
 
     mock_manager = MagicMock()
-    mock_manager.servers = {
-        "aa:bb:cc:dd:ee:ff": RemoteServer(
+    mock_manager.hosts = {
+        "aa:bb:cc:dd:ee:ff": RemoteHost(
             mac="aa:bb:cc:dd:ee:ff",
             address="test.local",
             name="test",
@@ -72,8 +72,8 @@ async def test_bootloader_view_unsupported_bootloader(hass: HomeAssistant) -> No
     mock_request.app = {"hass": hass}
 
     mock_manager = MagicMock()
-    mock_manager.servers = {
-        "aa:bb:cc:dd:ee:ff": RemoteServer(
+    mock_manager.hosts = {
+        "aa:bb:cc:dd:ee:ff": RemoteHost(
             mac="aa:bb:cc:dd:ee:ff",
             address="test.local",
             name="test",
@@ -101,8 +101,8 @@ async def test_bootloader_view_exception(hass: HomeAssistant) -> None:
     mock_request.app = {"hass": hass}
 
     mock_manager = MagicMock()
-    mock_manager.servers = {
-        "aa:bb:cc:dd:ee:ff": RemoteServer(
+    mock_manager.hosts = {
+        "aa:bb:cc:dd:ee:ff": RemoteHost(
             mac="aa:bb:cc:dd:ee:ff",
             address="test.local",
             name="test",
@@ -134,8 +134,8 @@ async def test_bootloader_view_success_read_only(hass: HomeAssistant) -> None:
     mock_request.query = {}
 
     mock_manager = MagicMock()
-    mock_manager.servers = {
-        "aa:bb:cc:dd:ee:ff": RemoteServer(
+    mock_manager.hosts = {
+        "aa:bb:cc:dd:ee:ff": RemoteHost(
             mac="aa:bb:cc:dd:ee:ff",
             address="test.local",
             name="test",
@@ -162,8 +162,8 @@ async def test_bootloader_view_success_read_only(hass: HomeAssistant) -> None:
         mock_manager.async_consume_next_boot_option.assert_not_called()
 
         # Verify the unconsumed next_boot_option is passed to the generator
-        called_server = mock_bootloader.generate_boot_config.call_args[0][0]
-        assert called_server["next_boot_option"] == "windows"
+        called_host = mock_bootloader.generate_boot_config.call_args[0][0]
+        assert called_host["next_boot_option"] == "windows"
 
 
 async def test_bootloader_view_success_consume(hass: HomeAssistant) -> None:
@@ -177,8 +177,8 @@ async def test_bootloader_view_success_consume(hass: HomeAssistant) -> None:
     hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
 
     mock_manager = MagicMock()
-    mock_manager.servers = {
-        "aa:bb:cc:dd:ee:ff": RemoteServer(
+    mock_manager.hosts = {
+        "aa:bb:cc:dd:ee:ff": RemoteHost(
             mac="aa:bb:cc:dd:ee:ff",
             address="test.local",
             name="test",
@@ -204,8 +204,8 @@ async def test_bootloader_view_success_consume(hass: HomeAssistant) -> None:
             "aa:bb:cc:dd:ee:ff"
         )
 
-        called_server = mock_bootloader.generate_boot_config.call_args[0][0]
-        assert called_server["next_boot_option"] == "windows"
+        called_host = mock_bootloader.generate_boot_config.call_args[0][0]
+        assert called_host["next_boot_option"] == "windows"
 
 
 async def test_bootloader_view_integration_not_configured(hass: HomeAssistant) -> None:

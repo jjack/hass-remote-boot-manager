@@ -26,7 +26,7 @@ class BootloaderView(HomeAssistantView):
 
     async def get(self, request: web.Request, mac_address: str) -> web.Response:
         """
-        Handle GET requests for a specific server's boot configuration.
+        Handle GET requests for a specific host's boot configuration.
 
         By default, this endpoint is read-only.
         If a valid `token` (the integration's webhook ID) is provided in the query
@@ -44,7 +44,7 @@ class BootloaderView(HomeAssistantView):
         status = HTTPStatus.INTERNAL_SERVER_ERROR
         entries = None
         manager = None
-        server = None
+        host = None
         bootloader = None
 
         if not mac_address:
@@ -53,15 +53,15 @@ class BootloaderView(HomeAssistantView):
             error_msg = "Integration not configured"
         elif not (manager := entries[0].runtime_data):
             error_msg = "Integration not ready"
-        elif not (server := manager.servers.get(mac_address)):
+        elif not (host := manager.hosts.get(mac_address)):
             LOGGER.warning(
                 "Bootloader request for unknown MAC address: %s", mac_address
             )
-            error_msg, status = "Server not found", HTTPStatus.NOT_FOUND
-        elif not (bootloader_name := server.bootloader):
+            error_msg, status = "Host not found", HTTPStatus.NOT_FOUND
+        elif not (bootloader_name := host.bootloader):
             LOGGER.error("No bootloader configured for %s", mac_address)
             error_msg, status = (
-                "No bootloader configured for this server",
+                "No bootloader configured for this host",
                 HTTPStatus.BAD_REQUEST,
             )
         elif not (bootloader := await async_get_bootloader(hass, bootloader_name)):
@@ -70,7 +70,7 @@ class BootloaderView(HomeAssistantView):
             )
             error_msg, status = "Bootloader not supported", HTTPStatus.BAD_REQUEST
 
-        if error_msg or not bootloader or not server or not manager or not entries:
+        if error_msg or not bootloader or not host or not manager or not entries:
             return web.json_response(
                 {"error": error_msg or "Internal Server Error"}, status=status
             )
@@ -83,15 +83,15 @@ class BootloaderView(HomeAssistantView):
 
             # Authenticated GET requests with a valid token intentionally mutate state
             # by "consuming" the boot option to prevent infinite boot loops.
-            server_copy = dataclasses.asdict(server)
+            host_copy = dataclasses.asdict(host)
             if token and token == valid_token:
-                server_copy["next_boot_option"] = (
-                    manager.async_consume_next_boot_option(mac_address)
+                host_copy["next_boot_option"] = manager.async_consume_next_boot_option(
+                    mac_address
                 )
             else:
-                server_copy["next_boot_option"] = server.next_boot_option
+                host_copy["next_boot_option"] = host.next_boot_option
 
-            return bootloader.generate_boot_config(server_copy)
+            return bootloader.generate_boot_config(host_copy)
         except Exception:
             LOGGER.exception("Error generating boot config for %s", mac_address)
             return web.json_response(

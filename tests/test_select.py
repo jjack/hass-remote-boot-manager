@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from custom_components.remote_boot_manager.const import DEFAULT_BOOT_OPTION_NONE
-from custom_components.remote_boot_manager.manager import RemoteServer
+from custom_components.remote_boot_manager.manager import RemoteHost
 from custom_components.remote_boot_manager.select import (
     RemoteBootManagerSelect,
     async_setup_entry,
@@ -14,7 +14,7 @@ async def test_async_setup_entry(hass):
     """Test the setup entry logic, including the dispatcher connection."""
     mock_entry = MagicMock()
     mock_manager = MagicMock()
-    mock_manager.servers = {"00:11:22:33:44:55": MagicMock()}
+    mock_manager.hosts = {"00:11:22:33:44:55": MagicMock()}
     mock_entry.runtime_data = mock_manager
     async_add_entities = MagicMock()
 
@@ -29,7 +29,7 @@ async def test_async_setup_entry(hass):
 
         # Verify the dispatcher callback adds the new entity
         callback = mock_connect.call_args[0][2]
-        mock_manager.servers["AA:BB:CC:DD:EE:FF"] = MagicMock()
+        mock_manager.hosts["AA:BB:CC:DD:EE:FF"] = MagicMock()
         callback("AA:BB:CC:DD:EE:FF")
         assert async_add_entities.call_count == 2
 
@@ -39,10 +39,10 @@ async def test_select_init_model_name(hass):
     manager = MagicMock()
 
     # With broadcast info
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
-            name="Test Server",
+            name="Test Host",
             address="test.local",
             broadcast_address="192.168.1.255",
             broadcast_port=9,
@@ -56,10 +56,10 @@ async def test_select_init_model_name(hass):
     )
 
     # Without broadcast info
-    manager.servers = {
-        "AA:BB:CC:DD:EE:FF": RemoteServer(
+    manager.hosts = {
+        "AA:BB:CC:DD:EE:FF": RemoteHost(
             mac="AA:BB:CC:DD:EE:FF",
-            name="Test Server 2",
+            name="Test Host 2",
             address="test2.local",
         )
     }
@@ -71,8 +71,8 @@ async def test_select_init_model_name(hass):
 async def test_select_properties(hass):
     """Test the options and current_option properties."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
             name="Test",
             address="test.local",
@@ -85,7 +85,7 @@ async def test_select_properties(hass):
     assert select.options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
     assert select.current_option == "windows"
 
-    # Test fallback when server missing
+    # Test fallback when host missing
     select_missing = RemoteBootManagerSelect(manager, "00:11:22:33:44:55")
     select_missing.mac_address = "missing"
     assert select_missing.options == [DEFAULT_BOOT_OPTION_NONE]
@@ -95,8 +95,8 @@ async def test_select_properties(hass):
 async def test_async_select_option(hass):
     """Test selecting an option."""
     manager = MagicMock()
-    manager.servers = {
-        "00:11:22:33:44:55": RemoteServer(
+    manager.hosts = {
+        "00:11:22:33:44:55": RemoteHost(
             mac="00:11:22:33:44:55",
             name="Test",
             address="test.local",

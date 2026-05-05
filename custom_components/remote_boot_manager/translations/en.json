@@ -30,11 +30,11 @@
     "options": {
         "step": {
             "init": {
-                "title": "Select Server",
-                "description": "Choose a server to configure."
+                "title": "Select Host",
+                "description": "Choose a host to configure."
             },
-            "server_config": {
-                "title": "Configure {server_name}",
+            "host_config": {
+                "title": "Configure {host_name}",
                 "description": "Select a script to gracefully shut down the remote host. \n\n**Note:** You can also manually adjust the network addresses below for debugging purposes, but these will be automatically overwritten the next time the Remote Boot Agent checks in!",
                 "data": {
                     "turn_off_script": "Shutdown Script (Optional)",

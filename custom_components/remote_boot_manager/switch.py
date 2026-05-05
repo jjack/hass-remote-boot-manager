@@ -18,7 +18,7 @@ from .const import (
     DOMAIN,
     PING_COUNT,
     PING_TIMEOUT_SECONDS,
-    SIGNAL_NEW_SERVER,
+    SIGNAL_NEW_HOST,
     WAIT_FOR_HOST_POWER_SECONDS,
 )
 
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
     from .data import RemoteBootManagerConfigEntry
-    from .manager import RemoteServer
+    from .manager import RemoteHost
 
 
 async def _async_ping_host(host: str) -> bool:
@@ -49,12 +49,12 @@ class RemoteBootManagerSwitch(SwitchEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        server: RemoteServer,
+        host: RemoteHost,
     ) -> None:
         """Initialize the switch class."""
-        self.server = server
+        self.host = host
 
-        self._attr_unique_id = f"{self.server.mac}_wake_switch"
+        self._attr_unique_id = f"{self.host.mac}_wake_switch"
         self._attr_name = "Wake"
         self._attr_has_entity_name = True
         self._attr_device_class = SwitchDeviceClass.SWITCH
@@ -62,15 +62,15 @@ class RemoteBootManagerSwitch(SwitchEntity):
 
         self._ping_task: asyncio.Task | None = None
         self._turn_off_script = (
-            Script(hass, self.server.off_action, self.server.name, DOMAIN)
-            if self.server.off_action
+            Script(hass, self.host.off_action, self.host.name, DOMAIN)
+            if self.host.off_action
             else None
         )
 
         broadcast_info = []
-        if b_addr := self.server.broadcast_address:
+        if b_addr := self.host.broadcast_address:
             broadcast_info.append(f"Broadcast: {b_addr}")
-        if b_port := self.server.broadcast_port:
+        if b_port := self.host.broadcast_port:
             broadcast_info.append(f"Port: {b_port}")
 
         model_name = (
@@ -80,17 +80,17 @@ class RemoteBootManagerSwitch(SwitchEntity):
         )
 
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.server.mac)},
-            name=self.server.name,
+            identifiers={(DOMAIN, self.host.mac)},
+            name=self.host.name,
             manufacturer="Remote Boot Manager",
             model=model_name,
-            connections={(CONNECTION_NETWORK_MAC, self.server.mac)},
+            connections={(CONNECTION_NETWORK_MAC, self.host.mac)},
         )
 
     @property
     def _ping_target(self) -> str | None:
         """Return the target IP or hostname to ping."""
-        return self.server.address
+        return self.host.address
 
     @property
     def assumed_state(self) -> bool:
@@ -120,15 +120,15 @@ class RemoteBootManagerSwitch(SwitchEntity):
         self.async_write_ha_state()
 
         wol_kwargs = {}
-        if self.server.broadcast_address is not None:
-            wol_kwargs["ip_address"] = self.server.broadcast_address
-        if self.server.broadcast_port is not None:
-            wol_kwargs["port"] = self.server.broadcast_port
+        if self.host.broadcast_address is not None:
+            wol_kwargs["ip_address"] = self.host.broadcast_address
+        if self.host.broadcast_port is not None:
+            wol_kwargs["port"] = self.host.broadcast_port
 
         # wakeonlan uses blocking sockets; offload to an executor thread to prevent
         # stalling the HA event loop.
         await self.hass.async_add_executor_job(
-            partial(wakeonlan.send_magic_packet, self.server.mac, **wol_kwargs)
+            partial(wakeonlan.send_magic_packet, self.host.mac, **wol_kwargs)
         )
 
         target = self._ping_target
@@ -198,16 +198,16 @@ async def async_setup_entry(
     manager = entry.runtime_data
 
     @callback
-    def async_add_server_switch(mac_address: str) -> None:
-        """Add a switch entity for a newly discovered server."""
-        server = manager.servers[mac_address]
-        async_add_entities([RemoteBootManagerSwitch(hass, server)])
+    def async_add_host_switch(mac_address: str) -> None:
+        """Add a switch entity for a newly discovered host."""
+        host = manager.hosts[mac_address]
+        async_add_entities([RemoteBootManagerSwitch(hass, host)])
 
-    # Add entities for servers that already exist in the manager
-    for mac in manager.servers:
-        async_add_server_switch(mac)
+    # Add entities for hosts that already exist in the manager
+    for mac in manager.hosts:
+        async_add_host_switch(mac)
 
-    # Listen for the signal to add new servers discovered via webhook
+    # Listen for the signal to add new hosts discovered via webhook
     entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_NEW_SERVER, async_add_server_switch)
+        async_dispatcher_connect(hass, SIGNAL_NEW_HOST, async_add_host_switch)
     )

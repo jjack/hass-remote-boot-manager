@@ -22,7 +22,7 @@ from .const import (
     DOMAIN,
     LOGGER,
     SAVE_DELAY,
-    SIGNAL_NEW_SERVER,
+    SIGNAL_NEW_HOST,
 )
 
 if TYPE_CHECKING:
@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 
 
 @dataclass(slots=True)
-class RemoteServer:
-    """Represents the state of a remote bare-metal server."""
+class RemoteHost:
+    """Represents the state of a remote bare-metal host."""
 
     mac: str
     name: str
@@ -48,7 +48,7 @@ class RemoteServer:
     off_action: list[Any] | None = None
 
     def update_from_payload(self, payload: dict[str, Any]) -> None:
-        """Safely update the server state from incoming webhook data."""
+        """Safely update the host state from incoming webhook data."""
         self.name = payload.get("name", self.name)
         self.address = payload.get(CONF_ADDRESS, self.address)
         self.bootloader = payload.get("bootloader", self.bootloader)
@@ -66,42 +66,42 @@ class RemoteBootManager:
         """Central state manager for remote boot options."""
         self.hass = hass
 
-        self.servers: dict[str, RemoteServer] = {}
-        self._store = Store(hass, 1, f"{DOMAIN}.servers")
+        self.hosts: dict[str, RemoteHost] = {}
+        self._store = Store(hass, 1, f"{DOMAIN}.hosts")
 
     async def async_load(self) -> None:
         """Load data from storage."""
         data = await self._store.async_load()
-        if data and "servers" in data:
-            self.servers = {}
-            for mac, server_data in data["servers"].items():
-                if isinstance(server_data, dict):
+        if data and "hosts" in data:
+            self.hosts = {}
+            for mac, host_data in data["hosts"].items():
+                if isinstance(host_data, dict):
                     # Strip unrecognized keys from legacy storage data to prevent
                     # dataclass instantiation errors if the underlying data model has
                     # changed since the data was saved.
-                    valid_keys = {f.name for f in dataclasses.fields(RemoteServer)}
+                    valid_keys = {f.name for f in dataclasses.fields(RemoteHost)}
                     filtered_data = {
-                        k: v for k, v in server_data.items() if k in valid_keys
+                        k: v for k, v in host_data.items() if k in valid_keys
                     }
-                    self.servers[mac] = RemoteServer(**filtered_data)
+                    self.hosts[mac] = RemoteHost(**filtered_data)
                 else:
                     LOGGER.warning(
-                        "Discarding invalid server data for %s: %s", mac, server_data
+                        "Discarding invalid host data for %s: %s", mac, host_data
                     )
 
     async def async_purge_data(self) -> None:
         """Purge data from storage."""
-        self.servers.clear()
+        self.hosts.clear()
         await self._store.async_remove()
 
     @callback
-    def async_remove_server(self, mac_address: str) -> None:
-        """Remove a server from the manager and save state."""
+    def async_remove_host(self, mac_address: str) -> None:
+        """Remove a host from the manager and save state."""
         mac_address = format_mac(mac_address)
-        if mac_address in self.servers:
-            self.servers.pop(mac_address)
+        if mac_address in self.hosts:
+            self.hosts.pop(mac_address)
             self.save()
-            LOGGER.info("Removed server: %s", mac_address)
+            LOGGER.info("Removed host: %s", mac_address)
 
     def save(self) -> None:
         """Save data to storage."""
@@ -111,9 +111,7 @@ class RemoteBootManager:
     def _data_to_save(self) -> dict[str, Any]:
         """Return data for storage."""
         return {
-            "servers": {
-                mac: dataclasses.asdict(server) for mac, server in self.servers.items()
-            }
+            "hosts": {mac: dataclasses.asdict(host) for mac, host in self.hosts.items()}
         }
 
     @callback
@@ -123,9 +121,9 @@ class RemoteBootManager:
         """Process payloads from the bare-metal GO agents."""
         mac_address = format_mac(mac_address)
 
-        is_new_server = mac_address not in self.servers
-        if is_new_server:
-            self.servers[mac_address] = RemoteServer(
+        is_new_host = mac_address not in self.hosts
+        if is_new_host:
+            self.hosts[mac_address] = RemoteHost(
                 mac=mac_address,
                 name=payload["name"],
                 address=payload.get(CONF_ADDRESS),
@@ -136,21 +134,21 @@ class RemoteBootManager:
             )
 
             LOGGER.info(
-                "Discovered new server: %s (%s)",
-                self.servers[mac_address].name,
+                "Discovered new host: %s (%s)",
+                self.hosts[mac_address].name,
                 mac_address,
             )
         else:
-            old_name = self.servers[mac_address].name
+            old_name = self.hosts[mac_address].name
 
-            self.servers[mac_address].update_from_payload(payload)
+            self.hosts[mac_address].update_from_payload(payload)
 
             # Update the HA device registry so the entity name updates in the UI
-            if old_name != self.servers[mac_address].name:
+            if old_name != self.hosts[mac_address].name:
                 LOGGER.info(
-                    "Server renamed: %s -> %s (%s)",
+                    "Host renamed: %s -> %s (%s)",
                     old_name,
-                    self.servers[mac_address].name,
+                    self.hosts[mac_address].name,
                     mac_address,
                 )
                 device_reg = dr.async_get(self.hass)
@@ -159,18 +157,18 @@ class RemoteBootManager:
                 )
                 if device:
                     device_reg.async_update_device(
-                        device.id, name=self.servers[mac_address].name
+                        device.id, name=self.hosts[mac_address].name
                     )
             else:
                 LOGGER.info(
-                    "Received update for server: %s (%s) - boot options: %s",
-                    self.servers[mac_address].name,
+                    "Received update for host: %s (%s) - boot options: %s",
+                    self.hosts[mac_address].name,
                     mac_address,
-                    self.servers[mac_address].boot_options,
+                    self.hosts[mac_address].boot_options,
                 )
 
         # add "(none)" option to the front of the list if it's not already there
-        current_options = self.servers[mac_address].boot_options
+        current_options = self.hosts[mac_address].boot_options
         if not current_options:
             boot_options = [DEFAULT_BOOT_OPTION_NONE]
         elif current_options[0] != DEFAULT_BOOT_OPTION_NONE:
@@ -179,19 +177,19 @@ class RemoteBootManager:
             # It's already in the correct format
             boot_options = current_options
 
-        self.servers[mac_address].boot_options = boot_options
+        self.hosts[mac_address].boot_options = boot_options
 
         # If the selected boot option is no longer in the list, reset it
         if (
-            self.servers[mac_address].next_boot_option not in boot_options
-            and self.servers[mac_address].next_boot_option != DEFAULT_BOOT_OPTION_NONE
+            self.hosts[mac_address].next_boot_option not in boot_options
+            and self.hosts[mac_address].next_boot_option != DEFAULT_BOOT_OPTION_NONE
         ):
-            # Prevent boot-loops into non-existent OSes if the server's reported
+            # Prevent boot-loops into non-existent OSes if the host's reported
             # options changed (e.g., OS uninstalled).
-            self.servers[mac_address].next_boot_option = DEFAULT_BOOT_OPTION_NONE
+            self.hosts[mac_address].next_boot_option = DEFAULT_BOOT_OPTION_NONE
 
-        if is_new_server:
-            async_dispatcher_send(self.hass, SIGNAL_NEW_SERVER, mac_address)
+        if is_new_host:
+            async_dispatcher_send(self.hass, SIGNAL_NEW_HOST, mac_address)
         else:
             async_dispatcher_send(self.hass, f"{DOMAIN}_update_{mac_address}")
 
@@ -203,8 +201,8 @@ class RemoteBootManager:
     ) -> None:
         """Notify listeners that the selected boot option has changed."""
         mac_address = format_mac(mac_address)
-        if mac_address in self.servers:
-            self.servers[mac_address].next_boot_option = next_boot_option
+        if mac_address in self.hosts:
+            self.hosts[mac_address].next_boot_option = next_boot_option
             self.save()
             async_dispatcher_send(self.hass, f"{DOMAIN}_update_{mac_address}")
             LOGGER.debug(
@@ -217,7 +215,7 @@ class RemoteBootManager:
     def async_consume_next_boot_option(self, mac_address: str) -> str:
         """Retrieve the requested boot option and immediately resets the state."""
         mac_address = format_mac(mac_address)
-        if mac_address not in self.servers:
+        if mac_address not in self.hosts:
             LOGGER.warning(
                 "GRUB requested boot option for unknown MAC address: %s", mac_address
             )
@@ -225,8 +223,8 @@ class RemoteBootManager:
 
         # grab the selected boot option and reset the state for next boot to
         # prevent boot loops
-        next_boot_option = self.servers[mac_address].next_boot_option
-        self.servers[mac_address].next_boot_option = DEFAULT_BOOT_OPTION_NONE
+        next_boot_option = self.hosts[mac_address].next_boot_option
+        self.hosts[mac_address].next_boot_option = DEFAULT_BOOT_OPTION_NONE
         self.save()
 
         # Notify UI to revert the dropdown back to "(none)"
