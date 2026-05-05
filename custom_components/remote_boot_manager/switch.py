@@ -50,7 +50,7 @@ class RemoteBootManagerSwitch(SwitchEntity):
         self.server = server
 
         self._attr_unique_id = f"{self.server.mac}_wake_switch"
-        self._attr_name = self.server.name
+        self._attr_name = "Wake"
         self._attr_has_entity_name = True
         self._attr_device_class = SwitchDeviceClass.SWITCH
         self._attr_is_on = False
