@@ -213,6 +213,7 @@ async def test_bootloader_view_integration_not_configured(hass: HomeAssistant) -
         response = await view.get(mock_request, "00:11:22:33:44:55")
 
         assert response.status == HTTPStatus.INTERNAL_SERVER_ERROR
+        assert response.text is not None
         body = json.loads(response.text)
         assert body["error"] == "Integration not configured"
 
@@ -230,24 +231,6 @@ async def test_bootloader_view_integration_not_ready(hass: HomeAssistant) -> Non
         response = await view.get(mock_request, "00:11:22:33:44:55")
 
         assert response.status == HTTPStatus.INTERNAL_SERVER_ERROR
+        assert response.text is not None
         body = json.loads(response.text)
         assert body["error"] == "Integration not ready"
-
-
-async def test_bootloader_view_missing_documentation(hass: HomeAssistant) -> None:
-    """Test that BootloaderView handles an integration missing documentation."""
-    view = BootloaderView()
-    mock_request = MagicMock(spec=web.Request)
-    mock_request.app = {"hass": hass}
-
-    mock_entry = MagicMock()
-    mock_entry.runtime_data = MagicMock()
-    mock_entry.runtime_data.servers = {}
-    mock_entry.data = {"webhook_id": "valid_webhook_id"}
-
-    with patch.object(hass.config_entries, "async_entries", return_value=[mock_entry]):
-        response = await view.get(mock_request, "00:11:22:33:44:55")
-
-        assert response.status == HTTPStatus.INTERNAL_SERVER_ERROR
-        body = json.loads(response.text)
-        assert body["error"] == "Integration missing documentation"

@@ -28,7 +28,7 @@ async def test_validate_webhook_payload_too_large():
     payload, response = await async_validate_webhook_payload(request)
     assert payload is None
     assert response is not None
-    assert response.status == HTTPStatus.PAYLOAD_TOO_LARGE
+    assert response.status == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
 
 
 async def test_validate_webhook_invalid_json():
