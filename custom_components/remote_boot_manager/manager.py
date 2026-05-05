@@ -186,6 +186,8 @@ class RemoteBootManager:
             self.servers[mac_address].next_boot_option not in boot_options
             and self.servers[mac_address].next_boot_option != DEFAULT_BOOT_OPTION_NONE
         ):
+            # Prevent boot-loops into non-existent OSes if the server's reported
+            # options changed (e.g., OS uninstalled).
             self.servers[mac_address].next_boot_option = DEFAULT_BOOT_OPTION_NONE
 
         if is_new_server:

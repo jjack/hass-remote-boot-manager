@@ -125,6 +125,8 @@ class RemoteBootManagerSwitch(SwitchEntity):
         if self.server.broadcast_port is not None:
             wol_kwargs["port"] = self.server.broadcast_port
 
+        # wakeonlan uses blocking sockets; offload to an executor thread to prevent
+        # stalling the HA event loop.
         await self.hass.async_add_executor_job(
             partial(wakeonlan.send_magic_packet, self.server.mac, **wol_kwargs)
         )
@@ -168,6 +170,7 @@ class RemoteBootManagerSwitch(SwitchEntity):
         try:
             await asyncio.sleep(WAIT_FOR_HOST_POWER_SECONDS)
         except asyncio.CancelledError:
+            # Graciously exit if a new power command cancels this background ping loop.
             return
 
         for _ in range(36):  # 36 iterations * 5 seconds = 180 seconds (3 mins)
@@ -177,6 +180,8 @@ class RemoteBootManagerSwitch(SwitchEntity):
             try:
                 await asyncio.sleep(5)
             except asyncio.CancelledError:
+                # Graciously exit if a new power command cancels this background ping
+                # loop.
                 return
 
         self._attr_is_on = not target_state

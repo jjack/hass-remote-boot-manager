@@ -75,6 +75,8 @@ async def async_validate_webhook_payload(
         )
 
     if not payload.get(CONF_NAME):
+        # Ensure a name exists for UI presentation, falling back to the network address
+        # if the agent omitted it.
         payload[CONF_NAME] = payload[CONF_ADDRESS]
 
     return payload, None
