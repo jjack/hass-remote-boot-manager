@@ -16,7 +16,10 @@ from icmplib import async_ping
 
 from .const import (
     DOMAIN,
+    PING_COUNT,
+    PING_TIMEOUT_SECONDS,
     SIGNAL_NEW_SERVER,
+    WAIT_FOR_HOST_POWER_SECONDS,
 )
 
 if TYPE_CHECKING:
@@ -31,7 +34,9 @@ async def _async_ping_host(host: str) -> bool:
     """Ping the given host asynchronously."""
     try:
         # privileged=False allows pinging without root privileges on most modern systems
-        result = await async_ping(host, count=1, timeout=1, privileged=False)
+        result = await async_ping(
+            host, count=PING_COUNT, timeout=PING_TIMEOUT_SECONDS, privileged=False
+        )
     except Exception:  # noqa: BLE001
         return False
     else:
@@ -64,11 +69,15 @@ class RemoteBootManagerSwitch(SwitchEntity):
 
         broadcast_info = []
         if b_addr := self.server.broadcast_address:
-            broadcast_info.append(f"IP: {b_addr}")
+            broadcast_info.append(f"Broadcast: {b_addr}")
         if b_port := self.server.broadcast_port:
             broadcast_info.append(f"Port: {b_port}")
 
-        model_name = f"WOL ({', '.join(broadcast_info)})" if broadcast_info else "WOL"
+        model_name = (
+            f"({', '.join(broadcast_info)})"
+            if broadcast_info
+            else "Remote Boot Manager"
+        )
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.server.mac)},
@@ -122,6 +131,7 @@ class RemoteBootManagerSwitch(SwitchEntity):
 
         target = self._ping_target
         if target:
+            # Cancel any existing background ping task to prevent UI state flapping
             if self._ping_task and not self._ping_task.done():
                 self._ping_task.cancel()
             self._ping_task = self.hass.async_create_background_task(
@@ -139,6 +149,7 @@ class RemoteBootManagerSwitch(SwitchEntity):
 
         target = self._ping_target
         if target:
+            # Cancel any existing background ping task to prevent UI state flapping
             if self._ping_task and not self._ping_task.done():
                 self._ping_task.cancel()
             self._ping_task = self.hass.async_create_background_task(
@@ -155,7 +166,7 @@ class RemoteBootManagerSwitch(SwitchEntity):
     async def _async_ping_loop(self, host: str, *, target_state: bool) -> None:
         """Ping host rapidly for 3 minutes after turn-on/off."""
         try:
-            await asyncio.sleep(10)
+            await asyncio.sleep(WAIT_FOR_HOST_POWER_SECONDS)
         except asyncio.CancelledError:
             return
 

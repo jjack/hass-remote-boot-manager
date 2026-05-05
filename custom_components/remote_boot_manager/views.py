@@ -81,6 +81,8 @@ class BootloaderView(HomeAssistantView):
             token = request.query.get("token")
             valid_token = entries[0].data.get("webhook_id")
 
+            # Authenticated GET requests with a valid token intentionally mutate state
+            # by "consuming" the boot option to prevent infinite boot loops.
             server_copy = dataclasses.asdict(server)
             if token and token == valid_token:
                 server_copy["next_boot_option"] = (

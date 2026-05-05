@@ -76,6 +76,9 @@ class RemoteBootManager:
             self.servers = {}
             for mac, server_data in data["servers"].items():
                 if isinstance(server_data, dict):
+                    # Strip unrecognized keys from legacy storage data to prevent
+                    # dataclass instantiation errors if the underlying data model has
+                    # changed since the data was saved.
                     valid_keys = {f.name for f in dataclasses.fields(RemoteServer)}
                     filtered_data = {
                         k: v for k, v in server_data.items() if k in valid_keys

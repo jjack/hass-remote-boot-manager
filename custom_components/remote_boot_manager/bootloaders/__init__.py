@@ -41,6 +41,8 @@ async def async_get_bootloader(hass: Any, name: str) -> BootloaderBase | None:
     """Get a bootloader instance by name."""
     if name not in _BOOTLOADERS:
         try:
+            # Dynamically importing modules performs blocking file I/O, so it must be
+            # offloaded to an executor thread.
             await hass.async_add_executor_job(_load_bootloader_module, name)
         except ImportError:
             LOGGER.exception("Failed to load bootloader %s", name)

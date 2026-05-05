@@ -24,3 +24,8 @@ BOOTLOADER_VIEW_URL = "/api/remote_boot_manager/{mac_address}"
 SAVE_DELAY = 15.0  # seconds to debounce saving to storage after changes
 
 SIGNAL_NEW_SERVER = f"{DOMAIN}_new_server"
+
+WAIT_FOR_HOST_POWER_SECONDS = 10
+
+PING_COUNT = 1
+PING_TIMEOUT_SECONDS = 1
