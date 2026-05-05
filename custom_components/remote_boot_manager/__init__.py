@@ -112,6 +112,11 @@ async def async_setup_entry(
                     status=HTTPStatus.INTERNAL_SERVER_ERROR,
                     text="Unexpected empty payload",
                 )
+            if CONF_MAC not in payload:
+                return web.Response(
+                    status=HTTPStatus.BAD_REQUEST,
+                    text="MAC address missing from payload",
+                )
 
             manager.async_process_webhook_payload(payload[CONF_MAC], payload)
             return web.Response(status=HTTPStatus.OK, text="OK")
