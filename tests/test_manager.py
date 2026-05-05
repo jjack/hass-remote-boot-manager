@@ -37,6 +37,8 @@ async def test_async_process_webhook_payload_new_server(manager, hass):
         "name": "test-server",
         "bootloader": "grub",
         "boot_options": ["ubuntu", "windows"],
+        "broadcast_address": "192.168.1.255",
+        "broadcast_port": 9,
     }
 
     with patch(
@@ -51,6 +53,8 @@ async def test_async_process_webhook_payload_new_server(manager, hass):
         assert server.address == "test.local"
         # make sure that (none) is prepended
         assert server.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "windows"]
+        assert server.broadcast_address == "192.168.1.255"
+        assert server.broadcast_port == 9
 
         mock_dispatch.assert_called_once()
 
@@ -86,6 +90,8 @@ async def test_async_process_webhook_payload_update_existing_server(manager, has
         "name": "new-hostname",
         "bootloader": "grub",
         "boot_options": ["ubuntu", "arch"],
+        "broadcast_address": "10.0.0.255",
+        "broadcast_port": 7,
     }
 
     with patch("custom_components.remote_boot_manager.manager.dr.async_get") as mock_dr:
@@ -101,6 +107,8 @@ async def test_async_process_webhook_payload_update_existing_server(manager, has
         assert server.name == "new-hostname"
         assert server.address == "new-hostname.local"
         assert server.boot_options == [DEFAULT_BOOT_OPTION_NONE, "ubuntu", "arch"]
+        assert server.broadcast_address == "10.0.0.255"
+        assert server.broadcast_port == 7
 
         # Verify device registry was updated with the new hostname
         mock_registry.async_update_device.assert_called_once_with(
@@ -138,7 +146,7 @@ async def test_async_remove_server_invalid_mac(manager, hass):
         address="test.local",
         name="test-server",
     )
-    with patch.object(manager, "_save") as mock_save:
+    with patch.object(manager, "save") as mock_save:
         manager.async_remove_server("FF:FF:FF:FF:FF:FF")
         assert "00:11:22:33:44:55" in manager.servers
         mock_save.assert_not_called()
@@ -322,3 +330,19 @@ async def test_async_remove_server(manager, hass):
 
     manager.async_remove_server("00:11:22:33:44:55")
     assert "00:11:22:33:44:55" not in manager.servers
+
+
+async def test_save(manager, mock_store):
+    """Test the save method calls delay save with correct data."""
+    manager.servers["00:11:22:33:44:55"] = RemoteServer(
+        mac="00:11:22:33:44:55",
+        address="test.local",
+        name="test-server",
+    )
+    manager.save()
+    mock_store.async_delay_save.assert_called_once()
+    # Verify the callback returns expected data
+    save_callback = mock_store.async_delay_save.call_args[0][0]
+    data = save_callback()
+    assert "00:11:22:33:44:55" in data["servers"]
+    assert data["servers"]["00:11:22:33:44:55"]["name"] == "test-server"

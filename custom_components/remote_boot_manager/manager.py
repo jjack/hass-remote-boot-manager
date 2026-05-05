@@ -100,10 +100,10 @@ class RemoteBootManager:
         mac_address = format_mac(mac_address)
         if mac_address in self.servers:
             self.servers.pop(mac_address)
-            self._save()
+            self.save()
             LOGGER.info("Removed server: %s", mac_address)
 
-    def _save(self) -> None:
+    def save(self) -> None:
         """Save data to storage."""
         self._store.async_delay_save(self._data_to_save, SAVE_DELAY)
 
@@ -195,7 +195,7 @@ class RemoteBootManager:
         else:
             async_dispatcher_send(self.hass, f"{DOMAIN}_update_{mac_address}")
 
-        self._save()
+        self.save()
 
     @callback
     def async_set_next_boot_option(
@@ -205,7 +205,7 @@ class RemoteBootManager:
         mac_address = format_mac(mac_address)
         if mac_address in self.servers:
             self.servers[mac_address].next_boot_option = next_boot_option
-            self._save()
+            self.save()
             async_dispatcher_send(self.hass, f"{DOMAIN}_update_{mac_address}")
             LOGGER.debug(
                 "Set selected boot option for %s to %s",
@@ -227,7 +227,7 @@ class RemoteBootManager:
         # prevent boot loops
         next_boot_option = self.servers[mac_address].next_boot_option
         self.servers[mac_address].next_boot_option = DEFAULT_BOOT_OPTION_NONE
-        self._save()
+        self.save()
 
         # Notify UI to revert the dropdown back to "(none)"
         async_dispatcher_send(self.hass, f"{DOMAIN}_update_{mac_address}")

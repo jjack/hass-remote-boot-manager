@@ -66,6 +66,8 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:  # n
         if CONF_BROADCAST_PORT in call.data:
             kwargs["port"] = call.data[CONF_BROADCAST_PORT]
 
+        # wakeonlan uses blocking sockets; offload to an executor thread to prevent
+        # stalling the HA event loop.
         await hass.async_add_executor_job(
             partial(wakeonlan.send_magic_packet, mac_address, **kwargs)
         )
@@ -137,6 +139,8 @@ async def async_setup_entry(
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     return True
 

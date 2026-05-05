@@ -2,10 +2,13 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
 from custom_components.remote_boot_manager import (
     async_reload_entry,
     async_remove_config_entry_device,
     async_remove_entry,
+    async_setup_entry,
 )
 from custom_components.remote_boot_manager.const import DOMAIN
 
@@ -79,3 +82,23 @@ async def test_async_remove_config_entry_device_no_match(hass):
 
     assert result is True
     mock_manager.async_remove_server.assert_not_called()
+
+
+async def test_async_setup_entry(hass):
+    """Test that setup adds an update listener and registers a webhook."""
+    entry = MockConfigEntry(domain=DOMAIN, data={"webhook_id": "test_id"})
+    entry.add_to_hass(hass)
+
+    with (
+        patch(
+            "custom_components.remote_boot_manager.manager.RemoteBootManager.async_load"
+        ),
+        patch("homeassistant.components.webhook.async_register") as mock_register,
+        patch.object(hass.config_entries, "async_forward_entry_setups"),
+        patch.object(entry, "add_update_listener") as mock_add_listener,
+        patch.object(entry, "async_on_unload") as mock_on_unload,
+    ):
+        assert await async_setup_entry(hass, entry) is True
+        mock_register.assert_called_once()
+        mock_add_listener.assert_called_once_with(async_reload_entry)
+        mock_on_unload.assert_called()
