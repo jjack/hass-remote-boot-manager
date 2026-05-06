@@ -1,5 +1,5 @@
 {
-    "name": "jjack/hass-remote-boot-manager",
+    "name": "jjack/ha-remote-boot-manager",
     "image": "mcr.microsoft.com/devcontainers/python:3.14",
     "postCreateCommand": "scripts/setup.sh",
     "forwardPorts": [
