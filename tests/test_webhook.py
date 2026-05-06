@@ -107,3 +107,29 @@ async def test_validate_webhook_empty_name_uses_address():
     assert payload is not None
     assert payload["mac"] == "00:11:22:33:44:55"
     assert payload["name"] == "test.local"
+
+
+async def test_validate_webhook_content_type_agnostic():
+    """Test validation works regardless of the Content-Type header."""
+    valid_json_text = '{"mac": "00:11:22:33:44:55", "address": "test.local", "name": "test", "bootloader": "grub", "boot_options": ["ubuntu"]}'
+
+    request_with_header = MagicMock(spec=web.Request)
+    request_with_header.headers = {"Content-Type": "application/json"}
+    request_with_header.text = AsyncMock(return_value=valid_json_text)
+
+    request_without_header = MagicMock(spec=web.Request)
+    request_without_header.headers = {}
+    request_without_header.text = AsyncMock(return_value=valid_json_text)
+
+    request_wrong_header = MagicMock(spec=web.Request)
+    request_wrong_header.headers = {"Content-Type": "text/plain"}
+    request_wrong_header.text = AsyncMock(return_value=valid_json_text)
+
+    # Test all variations to ensure the payload is parsed correctly
+    # without relying on aiohttp's strict request.json() content-type checking.
+    for request in [request_with_header, request_without_header, request_wrong_header]:
+        payload, response = await async_validate_webhook_payload(request)
+        assert response is None
+        assert payload is not None
+        assert payload["mac"] == "00:11:22:33:44:55"
+        assert payload["bootloader"] == "grub"

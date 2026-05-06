@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from http import HTTPStatus
 from typing import Any, cast
 
@@ -55,8 +56,8 @@ async def async_validate_webhook_payload(
         )
 
     try:
-        raw_payload = await request.json()
-    except ValueError:
+        raw_payload = json.loads(body)
+    except json.JSONDecodeError:
         LOGGER.warning("Webhook payload is not valid JSON")
         LOGGER.debug("Received invalid JSON payload: %s", body)
         return None, web.Response(
